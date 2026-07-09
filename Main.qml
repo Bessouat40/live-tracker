@@ -72,7 +72,7 @@ ApplicationWindow {
         CameraStreaming {
             id: camera
             
-            Layout.preferredHeight: 100
+            Layout.fillHeight: true
             Layout.preferredWidth: 2 * mainWindow.width / 3
             Layout.fillWidth: true
             

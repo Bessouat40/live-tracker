@@ -40,7 +40,7 @@ void CameraStreaming::readVideo() {
     cv::Mat frame;
     while (m_running) {
         cap >> frame;
-        if (frame.empty()) break;
+        if (frame.empty()) CameraStreaming::readVideo();
 
         QImage qimg((const uchar*)frame.data, frame.cols, frame.rows, 
                     frame.step, QImage::Format_BGR888);
