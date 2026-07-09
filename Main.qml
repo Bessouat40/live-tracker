@@ -69,12 +69,17 @@ ApplicationWindow {
                 Layout.fillHeight: true 
             }
         }
-        Image {
-            source: "./icons/ferris.png"
+        CameraStreaming {
+            id: camera
+            
             Layout.preferredHeight: 100
             Layout.preferredWidth: 2 * mainWindow.width / 3
             Layout.fillWidth: true
-            fillMode: Image.PreserveAspectFit
+            
+            Component.onCompleted: {
+                camera.setSource("./media/test.mp4") 
+                camera.startStream()
+            }
         }
     }
 }

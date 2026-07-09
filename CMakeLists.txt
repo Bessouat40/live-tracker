@@ -6,6 +6,7 @@ set(CMAKE_PREFIX_PATH "/home/uiv22989/Qt/6.11.1/gcc_64")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning)
+find_package(OpenCV REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -21,12 +22,16 @@ qt_add_qml_module(applive-tracker
         PositionTypes/PositionItem.qml
         PositionTypes/AddPositionPopup.qml
         MapTypes/MapDisplay.qml
+    SOURCES
+        src/camera_streaming.h
+        src/camera_streaming.cpp
     DEPENDENCIES
         QtLocation
         QtPositioning
     RESOURCES
         icons/eye-solid-full.svg
         icons/ferris.png
+        media/test.mp4
 )
 
 set_target_properties(applive-tracker PROPERTIES
@@ -36,8 +41,9 @@ set_target_properties(applive-tracker PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src)
 target_link_libraries(applive-tracker
-    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location
+    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location ${OpenCV_LIBS}
 )
 
 include(GNUInstallDirs)
