@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(geo-communication VERSION 0.1 LANGUAGES CXX)
+project(live-tracker VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_PREFIX_PATH "/home/uiv22989/Qt/6.11.1/gcc_64")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
