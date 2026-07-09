@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
-    engine.loadFromModule("geo-communication", "Main");
+    engine.loadFromModule("live-tracker", "Main");
 
     return app.exec();
 }
