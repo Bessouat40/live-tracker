@@ -9,35 +9,39 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-qt_add_executable(appgeo-communication
+qt_add_executable(applive-tracker
     main.cpp
 )
 
-qt_add_qml_module(appgeo-communication
-    URI geo-communication
+qt_add_qml_module(applive-tracker
+    URI live-tracker
     VERSION 1.0
     QML_FILES
         Main.qml
         PositionTypes/PositionItem.qml
         PositionTypes/AddPositionPopup.qml
+        MapTypes/MapDisplay.qml
     DEPENDENCIES
         QtLocation
         QtPositioning
+    RESOURCES
+        icons/eye-solid-full.svg
+        icons/ferris.png
 )
 
-set_target_properties(appgeo-communication PROPERTIES
+set_target_properties(applive-tracker PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
-target_link_libraries(appgeo-communication
+target_link_libraries(applive-tracker
     PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location
 )
 
 include(GNUInstallDirs)
-install(TARGETS appgeo-communication
+install(TARGETS applive-tracker
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

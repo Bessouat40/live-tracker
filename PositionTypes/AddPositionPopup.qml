@@ -26,7 +26,7 @@ Popup {
                 id: latitude
                 placeholderText: qsTr("Latitude")
                 font.pointSize: 24
-                Layout.preferredWidth: newAddressPopup.width / 2
+                Layout.preferredWidth: addPositionPopup.width / 2
                 Layout.fillWidth: true
             }
             TextField {

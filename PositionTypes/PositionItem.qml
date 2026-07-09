@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtPositioning
 
 Rectangle {
     id: positionItem
@@ -27,6 +28,15 @@ Rectangle {
             id: positionLabel
             text: latitude + ", " + longitude
             Layout.fillWidth: true
+        }
+        RoundButton {
+            icon.name: "focus-position"
+            icon.source: "../icons/eye-solid-full.svg"
+            flat: true
+            onClicked: {
+                map.center = QtPositioning.coordinate(latitude, longitude)
+                map.zoomLevel = 16
+            }
         }
         RoundButton {
             id: deletePositionButton
