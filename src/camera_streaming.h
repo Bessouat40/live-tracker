@@ -18,7 +18,7 @@ public:
     explicit CameraStreaming(QQuickItem *parent = nullptr);
     ~CameraStreaming();
     
-    Q_INVOKABLE void setSource(const QString &source) { m_source = source; }
+    Q_INVOKABLE void setSource(const qint32 &source) { m_source = source; }
     Q_INVOKABLE void startStream();
     Q_INVOKABLE void stopStream();
 
@@ -28,7 +28,7 @@ signals:
     void newFrameReady();
 
 private:
-    QString m_source;
+    qint32 m_source;
     QImage m_streamedImage;
     
     mutable std::mutex m_imageMutex;

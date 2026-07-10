@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(live-tracker VERSION 0.1 LANGUAGES CXX)
 
-set(CMAKE_PREFIX_PATH "/home/uiv22989/Qt/6.11.1/gcc_64")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning)
@@ -30,8 +29,6 @@ qt_add_qml_module(applive-tracker
         QtPositioning
     RESOURCES
         icons/eye-solid-full.svg
-        icons/ferris.png
-        media/test.mp4
 )
 
 set_target_properties(applive-tracker PROPERTIES

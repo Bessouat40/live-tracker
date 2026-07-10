@@ -77,7 +77,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             
             Component.onCompleted: {
-                camera.setSource("./media/test.mp4") 
+                camera.setSource(0) 
                 camera.startStream()
             }
         }

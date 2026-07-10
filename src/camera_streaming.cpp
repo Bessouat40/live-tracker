@@ -2,7 +2,7 @@
 #include <chrono>
 
 CameraStreaming::CameraStreaming(QQuickItem *parent)
-    : QQuickPaintedItem(parent), m_running(false) 
+    : QQuickPaintedItem(parent), m_running(false)
 {
     connect(this, &CameraStreaming::newFrameReady, this, &QQuickItem::update, Qt::QueuedConnection);
 }
@@ -31,7 +31,7 @@ void CameraStreaming::paint(QPainter *painter) {
 }
 
 void CameraStreaming::readVideo() {
-    cv::VideoCapture cap(m_source.toStdString());
+    cv::VideoCapture cap(m_source);
     if (!cap.isOpened()) {
         m_running = false;
         return;
