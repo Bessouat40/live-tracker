@@ -24,12 +24,16 @@ qt_add_qml_module(applive-tracker
     SOURCES
         src/camera_streaming.h
         src/camera_streaming.cpp
+        src/yolo_model.h
     DEPENDENCIES
         QtLocation
         QtPositioning
     RESOURCES
         icons/eye-solid-full.svg
+        media/test.mp4
 )
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/models DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set_target_properties(applive-tracker PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
