@@ -7,7 +7,7 @@ CameraStreaming::CameraStreaming(QQuickItem *parent)
 {
     connect(this, &CameraStreaming::newFrameReady, this, &QQuickItem::update, Qt::QueuedConnection);
     yoloModel = YoloModel();
-    yoloModel.load("models/yolo26n_local.onnx", "models/labels.txt");
+    yoloModel.load("models/yolo26n.onnx", "models/labels.txt");
 }
 
 CameraStreaming::~CameraStreaming() {
@@ -34,7 +34,30 @@ void CameraStreaming::paint(QPainter *painter) {
 }
 
 void CameraStreaming::detectObjects(cv::Mat &frame) {
-    yoloModel.runInference(frame);
+    std::vector<std::string> detectedLabels = yoloModel.runInference(frame);
+    auto now = std::chrono::steady_clock::now();
+
+    for (const auto& label : detectedLabels) {
+        bool shouldTrigger = false;
+
+        if (m_lastDetections.find(label) == m_lastDetections.end()) {
+            shouldTrigger = true;
+        } else {
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastDetections[label]).count();
+            if (elapsed > MOCK_COOLDOWN_MS) {
+                shouldTrigger = true;
+            }
+        }
+
+        if (shouldTrigger) {
+            m_lastDetections[label] = now;
+
+            double mockLat = 44.8377 + ((rand() % 100) / 10000.0) - 0.005;
+            double mockLon = -0.5791 + ((rand() % 100) / 10000.0) - 0.005;
+
+            emit positionMocked(mockLat, mockLon, QString::fromStdString(label));
+        }
+    }
 }
 
 void CameraStreaming::readVideo() {
@@ -69,7 +92,7 @@ void CameraStreaming::readVideo() {
 
         emit newFrameReady();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
     
     cap.release();

@@ -27,6 +27,7 @@ public:
     void paint(QPainter *painter) override;
 
 signals:
+    void positionMocked(double latitude, double longitude, QString label);
     void newFrameReady();
 
 private:
@@ -38,6 +39,9 @@ private:
     mutable std::mutex m_imageMutex;
     std::atomic<bool> m_running;
     std::thread m_videoThread;
+
+    std::map<std::string, std::chrono::steady_clock::time_point> m_lastDetections;
+    const int MOCK_COOLDOWN_MS = 5000;
 
     void readVideo();
     void detectObjects(cv::Mat &frame);
