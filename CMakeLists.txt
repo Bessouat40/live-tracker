@@ -18,6 +18,7 @@ qt_add_qml_module(applive-tracker
     VERSION 1.0
     QML_FILES
         Main.qml
+        Filters.qml
         PositionTypes/PositionItem.qml
         PositionTypes/AddPositionPopup.qml
         MapTypes/MapDisplay.qml

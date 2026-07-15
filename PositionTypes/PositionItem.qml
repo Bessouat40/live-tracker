@@ -6,27 +6,31 @@ import QtPositioning
 Rectangle {
     id: positionItem
     required property int index
+    required property string label
     required property real latitude
     required property real longitude
 
     color: (index % 2) == 0 ? "dimgray" : "lightgray"
     Layout.alignment: Qt.AlignLeft
     width: parent.width
-    height: positionLabel.height + 30
+
+    readonly property bool isMatch: mainWindow.filter === "" || label.includes(mainWindow.filter)
+    visible: isMatch
+    height: isMatch ? positionListViewer.implicitHeight + 50 : 0
+
+    clip: true 
+
     signal removed()
     RowLayout {
         spacing: 30
-        width: parent.width
         anchors.left: parent.left
         anchors.right: parent.right
-        
         anchors.verticalCenter: parent.verticalCenter
-        
         anchors.leftMargin: 15
         anchors.rightMargin: 15
         Label {
             id: positionLabel
-            text: latitude + ", " + longitude
+            text: label + " : " + latitude + ", " + longitude
             Layout.fillWidth: true
         }
         RoundButton {

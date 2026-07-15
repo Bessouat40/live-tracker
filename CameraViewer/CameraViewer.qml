@@ -6,10 +6,9 @@ import QtPositioning
 Rectangle {
     id: cameraViewer
 
-    color: (index % 2) == 0 ? "dimgray" : "lightgray"
+    color: "dimgray"
     Layout.alignment: Qt.AlignLeft
     width: parent.width
-    height: positionLabel.height + 30
     signal removed()
     ColumnLayout {
         anchors.fill: parent
@@ -18,8 +17,7 @@ Rectangle {
         RowLayout {
             spacing: 30
             width: parent.width
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
+            Layout.alignment: Qt.AlignHCenter
             Button {
                 id: playButton
                 text: "▶"
@@ -50,8 +48,8 @@ Rectangle {
             Layout.fillWidth: true
             
             Component.onCompleted: {
-                // camera.setSource(0) 
-                camera.setSourcePath("media/test.mp4")
+                camera.setSource(0) 
+                // camera.setSourcePath("media/test.mp4")
                 camera.startStream()
             }
 
@@ -59,6 +57,7 @@ Rectangle {
                 positionList.append({
                     "latitude": latitude, 
                     "longitude": longitude,
+                    "label": label
                 })
             }
         }
