@@ -14,6 +14,7 @@ class CameraStreaming : public QQuickPaintedItem
 {
     Q_OBJECT
     QML_ELEMENT
+    Q_PROPERTY(bool isRunning READ isRunning NOTIFY isRunningChanged)
 
 public:
     explicit CameraStreaming(QQuickItem *parent = nullptr);
@@ -25,9 +26,11 @@ public:
     Q_INVOKABLE void stopStream();
 
     void paint(QPainter *painter) override;
+    bool isRunning() const { return m_running.load(); }
 
 signals:
     void positionMocked(double latitude, double longitude, QString label);
+    void isRunningChanged();
     void newFrameReady();
 
 private:
@@ -37,7 +40,7 @@ private:
     YoloModel yoloModel;
     
     mutable std::mutex m_imageMutex;
-    std::atomic<bool> m_running;
+    std::atomic<bool> m_running = false;
     std::thread m_videoThread;
 
     std::map<std::string, std::chrono::steady_clock::time_point> m_lastDetections;

@@ -21,6 +21,7 @@ qt_add_qml_module(applive-tracker
         PositionTypes/PositionItem.qml
         PositionTypes/AddPositionPopup.qml
         MapTypes/MapDisplay.qml
+        CameraViewer/CameraViewer.qml
     SOURCES
         src/camera_streaming.h
         src/camera_streaming.cpp

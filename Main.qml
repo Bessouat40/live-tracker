@@ -69,25 +69,12 @@ ApplicationWindow {
                 Layout.fillHeight: true 
             }
         }
-        CameraStreaming {
-            id: camera
+        CameraViewer {
+            id: cameraViewer
             
             Layout.fillHeight: true
             Layout.preferredWidth: 2 * mainWindow.width / 3
             Layout.fillWidth: true
-            
-            Component.onCompleted: {
-                camera.setSource(0) 
-                // camera.setSourcePath("media/test.mp4")
-                camera.startStream()
-            }
-
-            onPositionMocked: function(latitude, longitude, label) {
-                positionList.append({
-                    "latitude": latitude, 
-                    "longitude": longitude,
-                })
-            }
         }
     }
 }

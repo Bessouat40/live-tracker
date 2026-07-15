@@ -36,6 +36,7 @@ Rectangle {
             onClicked: {
                 map.center = QtPositioning.coordinate(latitude, longitude)
                 map.zoomLevel = 16
+                map.setActive(true, latitude, longitude, index)
             }
         }
         RoundButton {

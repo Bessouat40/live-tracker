@@ -92,7 +92,7 @@ void CameraStreaming::readVideo() {
 
         emit newFrameReady();
 
-        // std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     
     cap.release();
@@ -101,6 +101,7 @@ void CameraStreaming::readVideo() {
 void CameraStreaming::startStream() {
     if (m_running) return;
     m_running = true;
+    emit isRunningChanged();
     m_videoThread = std::thread(&CameraStreaming::readVideo, this);
 }
 
@@ -110,5 +111,6 @@ void CameraStreaming::stopStream() {
         if (m_videoThread.joinable()) {
             m_videoThread.join();
         }
+        emit isRunningChanged();
     }
 }

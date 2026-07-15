@@ -12,6 +12,16 @@ Map {
     center: QtPositioning.coordinate(59.91, 10.75)
     zoomLevel: 14
     property geoCoordinate startCentroid
+    property int activeIndex: -1
+    function setActive(active, latitude, longitude, index) {
+        if (active) {
+            map.activeIndex = index
+            map.center = QtPositioning.coordinate(latitude, longitude)
+            map.zoomLevel = 16
+        } else {
+            map.activeIndex = -1
+        }
+    }
 
     PinchHandler {
         id: pinch
@@ -49,15 +59,29 @@ Map {
     MapItemView {
         model: positionList
         delegate: MapCircle {
+            required property int index
             required property real latitude
             required property real longitude
 
             center: QtPositioning.coordinate(latitude, longitude)
             
             radius: 10.0 
-            color: 'green'
+            color: map.activeIndex === index ? 'yellow' : 'green'
             border.color: 'black'
             border.width: 3
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true // Ici, la propriété existe bien !
+
+                ToolTip {
+                    // On affiche le ToolTip quand la souris survole le MouseArea
+                    visible: parent.containsMouse
+                    
+                    text: "Lat: " + latitude.toFixed(4) + "\nLon: " + longitude.toFixed(4)
+                    delay: 100 
+                }
+            }
         }
     }
 }
