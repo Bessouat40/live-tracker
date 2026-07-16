@@ -27,6 +27,11 @@ qt_add_qml_module(applive-tracker
         src/camera_streaming.h
         src/camera_streaming.cpp
         src/yolo_model.h
+        src/yolo_model.cpp
+        src/gps.cpp
+        src/gps.h
+        src/image_painter.h
+        src/image_painter.cpp
     DEPENDENCIES
         QtLocation
         QtPositioning

@@ -9,6 +9,8 @@
 #include <mutex>
 #include <atomic>
 #include "yolo_model.h"
+#include "image_painter.h"
+#include "gps.h"
 
 class CameraStreaming : public QQuickPaintedItem
 {
@@ -27,6 +29,8 @@ public:
 
     void paint(QPainter *painter) override;
     bool isRunning() const { return m_running.load(); }
+    void captureLoop();
+    void inferenceLoop();
 
 signals:
     void positionMocked(double latitude, double longitude, QString label);
@@ -38,6 +42,16 @@ private:
     QString m_sourcePath;
     QImage m_streamedImage;
     YoloModel yoloModel;
+    Gps gps;
+
+    std::thread m_captureThread;
+    std::thread m_inferenceThread;
+
+    std::mutex m_rawFrameMutex;
+    cv::Mat m_latestRawFrame;
+
+    std::mutex m_detectionsMutex;
+    std::vector<Detection> m_latestDetections;
     
     mutable std::mutex m_imageMutex;
     std::atomic<bool> m_running = false;
@@ -47,5 +61,5 @@ private:
     const int MOCK_COOLDOWN_MS = 5000;
 
     void readVideo();
-    void detectObjects(cv::Mat &frame);
+    std::vector<Detection> detectObjects(cv::Mat &frame);
 };

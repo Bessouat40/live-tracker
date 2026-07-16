@@ -1,5 +1,4 @@
 #include "camera_streaming.h"
-#include "yolo_model.h"
 #include <chrono>
 
 CameraStreaming::CameraStreaming(QQuickItem *parent)
@@ -8,6 +7,8 @@ CameraStreaming::CameraStreaming(QQuickItem *parent)
     connect(this, &CameraStreaming::newFrameReady, this, &QQuickItem::update, Qt::QueuedConnection);
     yoloModel = YoloModel();
     yoloModel.load("models/yolo26n.onnx", "models/labels.txt");
+    gps = Gps();
+    gps.load("");
 }
 
 CameraStreaming::~CameraStreaming() {
@@ -33,31 +34,30 @@ void CameraStreaming::paint(QPainter *painter) {
     painter->drawImage(targetRect, m_streamedImage, m_streamedImage.rect());
 }
 
-void CameraStreaming::detectObjects(cv::Mat &frame) {
-    std::vector<std::string> detectedLabels = yoloModel.runInference(frame);
+std::vector<Detection> CameraStreaming::detectObjects(cv::Mat &frame) {
+    std::vector<Detection> detections = yoloModel.runInference(frame);
     auto now = std::chrono::steady_clock::now();
 
-    for (const auto& label : detectedLabels) {
+    for (const auto& detection : detections) {
         bool shouldTrigger = false;
 
-        if (m_lastDetections.find(label) == m_lastDetections.end()) {
+        if (m_lastDetections.find(detection.label) == m_lastDetections.end()) {
             shouldTrigger = true;
         } else {
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastDetections[label]).count();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastDetections[detection.label]).count();
             if (elapsed > MOCK_COOLDOWN_MS) {
                 shouldTrigger = true;
             }
         }
 
         if (shouldTrigger) {
-            m_lastDetections[label] = now;
+            m_lastDetections[detection.label] = now;
 
-            double mockLat = 44.8377 + ((rand() % 100) / 10000.0) - 0.005;
-            double mockLon = -0.5791 + ((rand() % 100) / 10000.0) - 0.005;
-
-            emit positionMocked(mockLat, mockLon, QString::fromStdString(label));
+            GpsPosition pos = gps.getPositions();
+            emit positionMocked(pos.latitude, pos.longitude, QString::fromStdString(detection.label));
         }
     }
+    return detections;
 }
 
 void CameraStreaming::readVideo() {
@@ -80,7 +80,10 @@ void CameraStreaming::readVideo() {
             return;
         }
 
-        detectObjects(frame);
+        std::vector<Detection> detections = detectObjects(frame);
+        for (const auto& detection : detections) {
+            ImagePainter::drawYoloDetection(frame, detection);
+        }
 
         QImage qimg((const uchar*)frame.data, frame.cols, frame.rows, 
                     frame.step, QImage::Format_BGR888);
@@ -92,9 +95,78 @@ void CameraStreaming::readVideo() {
 
         emit newFrameReady();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     
+    cap.release();
+}
+
+void CameraStreaming::inferenceLoop() {
+    cv::Mat frameToProcess;
+
+    while (m_running) {
+        int t1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        {
+            std::lock_guard<std::mutex> lock(m_rawFrameMutex);
+            if (!m_latestRawFrame.empty()) {
+                frameToProcess = m_latestRawFrame.clone();
+            }
+        }
+
+        if (frameToProcess.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            continue;
+        }
+
+        std::vector<Detection> detections = detectObjects(frameToProcess);
+
+        {
+            std::lock_guard<std::mutex> lock(m_detectionsMutex);
+            m_latestDetections = detections; 
+        }
+        std::cout << "Inference loop duration: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - t1) << " ms" << std::endl;
+    }
+}
+
+void CameraStreaming::captureLoop() {
+    cv::VideoCapture cap;
+    if (!m_sourcePath.isEmpty()) {
+        cap.open(m_sourcePath.toStdString());
+    } else {
+        cap.open(m_source);
+    }
+    if (!cap.isOpened()) {
+        m_running = false;
+        return;
+    }
+    cv::Mat frame;
+
+    while (m_running) {
+        cap >> frame;
+        if (frame.empty()) continue;
+
+        {
+            std::lock_guard<std::mutex> lock(m_rawFrameMutex);
+            m_latestRawFrame = frame.clone(); 
+        }
+
+        std::vector<Detection> currentDetections;
+        {
+            std::lock_guard<std::mutex> lock(m_detectionsMutex);
+            currentDetections = m_latestDetections;
+        }
+
+        for (const auto& detection : currentDetections) {
+            ImagePainter::drawYoloDetection(frame, detection);
+        }
+
+        QImage qimg((const uchar*)frame.data, frame.cols, frame.rows, frame.step, QImage::Format_BGR888);
+        {
+            std::lock_guard<std::mutex> lock(m_imageMutex);
+            m_streamedImage = qimg.copy();
+        }
+        
+        emit newFrameReady();
+    }
     cap.release();
 }
 
@@ -102,15 +174,18 @@ void CameraStreaming::startStream() {
     if (m_running) return;
     m_running = true;
     emit isRunningChanged();
-    m_videoThread = std::thread(&CameraStreaming::readVideo, this);
+
+    m_captureThread = std::thread(&CameraStreaming::captureLoop, this);
+    m_inferenceThread = std::thread(&CameraStreaming::inferenceLoop, this);
 }
 
 void CameraStreaming::stopStream() {
     if (m_running) {
         m_running = false;
-        if (m_videoThread.joinable()) {
-            m_videoThread.join();
-        }
+        
+        if (m_captureThread.joinable()) m_captureThread.join();
+        if (m_inferenceThread.joinable()) m_inferenceThread.join();
+        
         emit isRunningChanged();
     }
 }
