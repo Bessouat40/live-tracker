@@ -60,46 +60,6 @@ std::vector<Detection> CameraStreaming::detectObjects(cv::Mat &frame) {
     return detections;
 }
 
-void CameraStreaming::readVideo() {
-    cv::VideoCapture cap;
-    if (!m_sourcePath.isEmpty()) {
-        cap.open(m_sourcePath.toStdString());
-    } else {
-        cap.open(m_source);
-    }
-    if (!cap.isOpened()) {
-        m_running = false;
-        return;
-    }
-
-    cv::Mat frame;
-    while (m_running) {
-        cap >> frame;
-        if (frame.empty()) {
-            CameraStreaming::readVideo();
-            return;
-        }
-
-        std::vector<Detection> detections = detectObjects(frame);
-        for (const auto& detection : detections) {
-            ImagePainter::drawYoloDetection(frame, detection);
-        }
-
-        QImage qimg((const uchar*)frame.data, frame.cols, frame.rows, 
-                    frame.step, QImage::Format_BGR888);
-        
-        {
-            std::lock_guard<std::mutex> lock(m_imageMutex);
-            m_streamedImage = qimg.copy();
-        }
-
-        emit newFrameReady();
-
-    }
-    
-    cap.release();
-}
-
 void CameraStreaming::inferenceLoop() {
     cv::Mat frameToProcess;
 

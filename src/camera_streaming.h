@@ -60,6 +60,5 @@ private:
     std::map<std::string, std::chrono::steady_clock::time_point> m_lastDetections;
     const int MOCK_COOLDOWN_MS = 5000;
 
-    void readVideo();
     std::vector<Detection> detectObjects(cv::Mat &frame);
 };
