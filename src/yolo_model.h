@@ -2,16 +2,17 @@
 #include <fstream>
 #include <iostream>
 #include <opencv2/dnn.hpp>
+#include <openvino/openvino.hpp>
 
 // documentation : https://opencv-opencv.mintlify.app/modules/dnn
 
 using namespace cv::dnn;
 
 struct DetectionPosition {
-    float x;
-    float y;
-    float w;
-    float h;
+    int x;
+    int y;
+    int w;
+    int h;
 };
 
 struct Detection {
@@ -33,8 +34,12 @@ public:
 
 private:
     std::vector<Detection> getDetections(cv::Mat &image);
+    std::vector<Detection> getOVDetections(cv::Mat &image);
 
     std::vector<std::string> getClassNames(const std::string &path);
     cv::dnn::Net net;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    ov::InferRequest infer_request;
     std::vector<std::string> classNames;
 };

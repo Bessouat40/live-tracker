@@ -8,6 +8,9 @@ void YoloModel::load(std::string modelPath, std::string classNamesPath) {
     net.setPreferableBackend(DNN_BACKEND_OPENCV);
     net.setPreferableTarget(DNN_TARGET_CPU);
     classNames = getClassNames(classNamesPath);
+    ov::Core core;
+    compiled_model = core.compile_model(modelPath, "AUTO");
+    infer_request = compiled_model.create_infer_request();
 };
 
 std::vector<std::string> YoloModel::getClassNames(const std::string &path) {
@@ -30,7 +33,8 @@ std::vector<std::string> YoloModel::getClassNames(const std::string &path) {
 }
 
 std::vector<Detection> YoloModel::runInference(cv::Mat &image) {
-    std::vector<Detection> rawDetections = getDetections(image);
+    std::vector<Detection> rawDetections = getOVDetections(image);
+    // std::vector<Detection> rawDetections = getDetections(image);
     
     std::vector<cv::Rect> boxes;
     std::vector<float> confidences;
@@ -54,6 +58,62 @@ std::vector<Detection> YoloModel::runInference(cv::Mat &image) {
     }
     
     return finalDetections;
+}
+
+std::vector<Detection> YoloModel::getOVDetections(cv::Mat &image) {
+    std::vector<Detection> detections;
+    
+    cv::Mat blob = cv::dnn::blobFromImage(image, 1.0/255.0, cv::Size(640, 640), 
+                                          cv::Scalar(), true, false);
+
+    auto input_port = compiled_model.input();
+    
+    ov::Tensor input_tensor(input_port.get_element_type(), input_port.get_shape(), blob.ptr<float>());
+    infer_request.set_input_tensor(input_tensor);
+    
+    infer_request.infer(); 
+    
+    auto output = infer_request.get_output_tensor(0);
+    auto shape = output.get_shape();
+    float* output_data = output.data<float>();
+
+    float x_factor = image.cols / 640.0f;
+    float y_factor = image.rows / 640.0f;
+
+    cv::Mat predictions(shape[1], shape[2], CV_32FC1, output_data); 
+    
+    cv::transpose(predictions, predictions);
+
+    for(int i = 0; i < predictions.rows; i++) {
+        float* data = predictions.ptr<float>(i);
+        
+        int numClasses = predictions.cols - 4; 
+        cv::Mat scores(1, numClasses, CV_32FC1, data + 4);
+        
+        double maxClassScore;
+        cv::Point classIdPoint;
+        cv::minMaxLoc(scores, 0, &maxClassScore, 0, &classIdPoint);
+        
+        if(maxClassScore > 0.5) {
+            float x = data[0] * x_factor;
+            float y = data[1] * y_factor;
+            float w = data[2] * x_factor;
+            float h = data[3] * y_factor;
+            
+            int left = static_cast<int>(x - w / 2);
+            int top = static_cast<int>(y - h / 2);
+
+            Detection detection;
+            detection.classId = classIdPoint.x;
+            detection.label = classNames[classIdPoint.x];
+            detection.confidence = static_cast<float>(maxClassScore);
+            detection.position = {left, top, static_cast<int>(w), static_cast<int>(h)};
+            
+            detections.push_back(detection);
+        }
+    }
+    
+    return detections;
 }
 
 std::vector<Detection> YoloModel::getDetections(cv::Mat &image) {

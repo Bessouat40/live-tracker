@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning)
 find_package(OpenCV REQUIRED)
+find_package(OpenVINO REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -50,7 +51,7 @@ set_target_properties(applive-tracker PROPERTIES
 
 target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src)
 target_link_libraries(applive-tracker
-    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location ${OpenCV_LIBS}
+    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location ${OpenCV_LIBS} openvino::runtime
 )
 
 include(GNUInstallDirs)

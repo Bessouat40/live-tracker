@@ -48,8 +48,8 @@ Rectangle {
             Layout.fillWidth: true
             
             Component.onCompleted: {
-                // camera.setSource(0) 
-                camera.setSourcePath("media/test.mp4")
+                camera.setSource(0) 
+                // camera.setSourcePath("media/test.mp4")
                 camera.startStream()
             }
 
