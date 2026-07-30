@@ -8,7 +8,11 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <deque>
 #include "yolo_model.h"
+#include "image_painter.h"
+#include "gps.h"
+#include "tracker.h"
 
 class CameraStreaming : public QQuickPaintedItem
 {
@@ -27,9 +31,11 @@ public:
 
     void paint(QPainter *painter) override;
     bool isRunning() const { return m_running.load(); }
+    void captureLoop();
+    void inferenceLoop();
 
 signals:
-    void positionMocked(double latitude, double longitude, QString label);
+    void positionMocked(double latitude, double longitude, QString label, QString clipPath, double confidence);
     void isRunningChanged();
     void newFrameReady();
 
@@ -38,14 +44,37 @@ private:
     QString m_sourcePath;
     QImage m_streamedImage;
     YoloModel yoloModel;
+    Gps gps;
+
+    std::thread m_captureThread;
+    std::thread m_inferenceThread;
+
+    std::mutex m_rawFrameMutex;
+    cv::Mat m_latestRawFrame;
+
+    std::mutex m_detectionsMutex;
+    std::vector<Detection> m_latestDetections;
     
     mutable std::mutex m_imageMutex;
     std::atomic<bool> m_running = false;
     std::thread m_videoThread;
 
-    std::map<std::string, std::chrono::steady_clock::time_point> m_lastDetections;
-    const int MOCK_COOLDOWN_MS = 5000;
+    Tracker tracker;
 
-    void readVideo();
-    void detectObjects(cv::Mat &frame);
+    struct ClipRequest { double lat; double lon; std::string label; float confidence; };
+    struct ActiveClip  { double lat; double lon; std::string label; float confidence; QString url; };
+
+    std::deque<ClipRequest> m_clipRequests;
+    std::mutex m_clipRequestMutex;
+    cv::VideoWriter m_clipWriter;
+    int m_clipFramesLeft = 0;
+    ActiveClip m_currentClip;
+    double m_captureFps = 30.0;
+    static constexpr double CLIP_SECONDS = 3.0;
+    static constexpr std::size_t MAX_PENDING_CLIPS = 30;
+
+    void handleClipRecording(const cv::Mat &annotatedFrame);
+    void startClip(const ClipRequest &req, const cv::Size &frameSize);
+
+    std::vector<Detection> detectObjects(cv::Mat &frame);
 };

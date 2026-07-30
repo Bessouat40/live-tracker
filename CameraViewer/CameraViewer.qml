@@ -1,64 +1,110 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtPositioning
 
 Rectangle {
     id: cameraViewer
 
-    color: "dimgray"
+    color: Theme.background
+    border.color: Theme.surface
+    border.width: 1
+    radius: Theme.radiusLg
+    clip: true
+
     Layout.alignment: Qt.AlignLeft
     width: parent.width
-    signal removed()
-    ColumnLayout {
+
+    CameraStreaming {
+        id: camera
         anchors.fill: parent
-        anchors.margins: 5
-        spacing: 5
-        RowLayout {
-            spacing: 30
-            width: parent.width
-            Layout.alignment: Qt.AlignHCenter
-            Button {
-                id: playButton
-                text: "▶"
-                enabled: !camera.isRunning
-                font.pointSize: 24                
-                flat: true
-                onClicked: {
-                    camera.startStream()
-                }
-            }
-            Button {
-                id: stopButton
-                text: "■"
-                enabled: camera.isRunning
-                font.pointSize: 24
-                flat: true
-                palette.buttonText: enabled ? "red" : "gray"
-                onClicked: {
-                    camera.stopStream()
-                }
-            }
+        anchors.margins: 1
+
+        Component.onCompleted: {
+            camera.setSource(0)
+            // camera.setSourcePath("tcp://xxx:8554")
+            camera.startStream()
         }
-        CameraStreaming {
-            id: camera
-            
-            Layout.fillHeight: true
-            Layout.preferredWidth: 2 * mainWindow.width / 3
-            Layout.fillWidth: true
-            
-            Component.onCompleted: {
-                camera.setSource(0) 
-                // camera.setSourcePath("media/test.mp4")
-                camera.startStream()
+
+        onPositionMocked: function(latitude, longitude, label, clipPath, confidence) {
+            positionList.addFinding(latitude, longitude, label, clipPath, confidence)
+        }
+    }
+
+    // Floating glassmorphism controls
+    Rectangle {
+        id: controlBar
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.spacingXl
+        width: 140
+        height: 48
+        radius: Theme.radiusPill
+        color: Theme.overlay
+        border.color: Theme.border
+        border.width: 1
+        z: 10 // Float over video stream
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: Theme.spacingXs
+            spacing: Theme.spacingSm
+
+            Button {
+                id: playBtn
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                flat: true
+                enabled: !camera.isRunning
+                hoverEnabled: true
+
+                contentItem: Text {
+                    text: "▶"
+                    font.pixelSize: 18
+                    color: playBtn.enabled ? (playBtn.hovered ? Theme.accent : Theme.success)
+                                           : Theme.textDisabled
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: playBtn.hovered ? Theme.surface : "transparent"
+                    radius: 20
+                }
+
+                onClicked: camera.startStream()
             }
 
-            onPositionMocked: function(latitude, longitude, label) {
-                positionList.append({
-                    "latitude": latitude, 
-                    "longitude": longitude,
-                    "label": label
-                })
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.fillHeight: true
+                Layout.topMargin: Theme.spacingSm
+                Layout.bottomMargin: Theme.spacingSm
+                color: Theme.border
+            }
+
+            Button {
+                id: stopBtn
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                flat: true
+                enabled: camera.isRunning
+                hoverEnabled: true
+
+                contentItem: Text {
+                    text: "■"
+                    font.pixelSize: 18
+                    color: stopBtn.enabled ? (stopBtn.hovered ? "#fca5a5" : Theme.danger)
+                                           : Theme.textDisabled
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: stopBtn.hovered ? Theme.surface : "transparent"
+                    radius: 20
+                }
+
+                onClicked: camera.stopStream()
             }
         }
     }

@@ -4,8 +4,9 @@ project(live-tracker VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia Sql)
 find_package(OpenCV REQUIRED)
+find_package(OpenVINO REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -13,23 +14,38 @@ qt_add_executable(applive-tracker
     main.cpp
 )
 
+set_source_files_properties(Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(applive-tracker
     URI live-tracker
     VERSION 1.0
     QML_FILES
         Main.qml
+        Theme.qml
+        ThemedButton.qml
         Filters.qml
+        VideoPopup.qml
         PositionTypes/PositionItem.qml
-        PositionTypes/AddPositionPopup.qml
         MapTypes/MapDisplay.qml
         CameraViewer/CameraViewer.qml
+        TimelineTypes/TimelineView.qml
     SOURCES
         src/camera_streaming.h
         src/camera_streaming.cpp
         src/yolo_model.h
+        src/yolo_model.cpp
+        src/gps.cpp
+        src/gps.h
+        src/image_painter.h
+        src/image_painter.cpp
+        src/tracker.h
+        src/tracker.cpp
+        src/finding_store.h
+        src/finding_store.cpp
     DEPENDENCIES
         QtLocation
         QtPositioning
+        QtMultimedia
     RESOURCES
         icons/eye-solid-full.svg
 )
@@ -45,7 +61,7 @@ set_target_properties(applive-tracker PROPERTIES
 
 target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src)
 target_link_libraries(applive-tracker
-    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location ${OpenCV_LIBS}
+    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
 )
 
 include(GNUInstallDirs)
