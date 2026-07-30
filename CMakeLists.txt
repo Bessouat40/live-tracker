@@ -4,7 +4,7 @@ project(live-tracker VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia Sql)
 find_package(OpenCV REQUIRED)
 find_package(OpenVINO REQUIRED)
 
@@ -28,6 +28,7 @@ qt_add_qml_module(applive-tracker
         PositionTypes/PositionItem.qml
         MapTypes/MapDisplay.qml
         CameraViewer/CameraViewer.qml
+        TimelineTypes/TimelineView.qml
     SOURCES
         src/camera_streaming.h
         src/camera_streaming.cpp
@@ -39,6 +40,8 @@ qt_add_qml_module(applive-tracker
         src/image_painter.cpp
         src/tracker.h
         src/tracker.cpp
+        src/finding_store.h
+        src/finding_store.cpp
     DEPENDENCIES
         QtLocation
         QtPositioning
@@ -58,7 +61,7 @@ set_target_properties(applive-tracker PROPERTIES
 
 target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src)
 target_link_libraries(applive-tracker
-    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia ${OpenCV_LIBS} openvino::runtime
+    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
 )
 
 include(GNUInstallDirs)

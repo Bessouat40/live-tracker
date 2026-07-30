@@ -8,6 +8,7 @@ struct Track {
     int id;
     cv::Rect box;
     std::string label;
+    float confidence = 0.0f;
     int hits = 1;
     int timeSinceUpdate = 0;
     bool emitted = false;

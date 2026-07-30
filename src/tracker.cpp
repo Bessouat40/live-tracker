@@ -53,6 +53,7 @@ std::vector<Track> Tracker::update(const std::vector<Detection> &detections) {
 
         Track &t = m_tracks[p.trackIdx];
         t.box = detBoxes[p.detIdx];
+        t.confidence = detections[p.detIdx].confidence;
         t.hits++;
         t.timeSinceUpdate = 0;
     }
@@ -64,6 +65,7 @@ std::vector<Track> Tracker::update(const std::vector<Detection> &detections) {
         t.id = m_nextId++;
         t.box = detBoxes[di];
         t.label = detections[di].label;
+        t.confidence = detections[di].confidence;
         t.hits = 1;
         t.timeSinceUpdate = 0;
         t.emitted = false;

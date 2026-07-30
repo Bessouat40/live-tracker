@@ -1,5 +1,7 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtMultimedia
 
 Popup {
@@ -15,15 +17,42 @@ Popup {
     y: (parent.height - height) / 2
 
     property string title: ""
+    property url clipUrl: ""
+    property string saveStatus: ""
 
     function openWith(url, label) {
         root.title = label
+        root.clipUrl = url
+        root.saveStatus = ""
         player.source = url
         open()
         player.play()
     }
 
+    function suggestedName() {
+        let base = root.title ? root.title.replace(/[^\w\-]+/g, "_") : "finding"
+        return "clip_" + base + "_" + Qt.formatDateTime(new Date(), "yyyyMMdd_HHmmss") + ".mp4"
+    }
+
     onClosed: player.stop()
+
+    FileDialog {
+        id: saveDialog
+        fileMode: FileDialog.SaveFile
+        nameFilters: [qsTr("MP4 video (*.mp4)")]
+        defaultSuffix: "mp4"
+        onAccepted: {
+            let ok = FindingStore.exportClip(root.clipUrl, saveDialog.selectedFile)
+            root.saveStatus = ok ? qsTr("Saved ✓") : qsTr("Save failed")
+            saveStatusTimer.restart()
+        }
+    }
+
+    Timer {
+        id: saveStatusTimer
+        interval: 2800
+        onTriggered: root.saveStatus = ""
+    }
 
     background: Rectangle {
         color: Theme.background
@@ -101,30 +130,87 @@ Popup {
             }
         }
 
-        // Close button
-        Button {
-            id: closeBtn
+        // Top-right controls: save clip + close
+        Row {
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.margins: Theme.spacingSm
-            flat: true
-            hoverEnabled: true
-            width: 32
-            height: 32
+            spacing: Theme.spacingSm
 
-            contentItem: Text {
-                text: "✕"
-                color: closeBtn.hovered ? Theme.danger : Theme.text
-                font.pixelSize: 15
-                font.bold: true
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+            // Transient save-status chip
+            Rectangle {
+                visible: root.saveStatus !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                width: statusLabel.implicitWidth + 2 * Theme.spacingMd
+                height: 28
+                radius: Theme.radiusSm
+                color: Theme.overlay
+                border.color: root.saveStatus === qsTr("Save failed") ? Theme.danger : Theme.success
+                border.width: 1
+
+                Label {
+                    id: statusLabel
+                    anchors.centerIn: parent
+                    text: root.saveStatus
+                    color: root.saveStatus === qsTr("Save failed") ? Theme.danger : Theme.success
+                    font.pixelSize: 12
+                    font.bold: true
+                }
             }
-            background: Rectangle {
-                radius: 16
-                color: closeBtn.hovered ? Theme.surfaceHover : Theme.overlay
+
+            // Save / download clip
+            Button {
+                id: saveBtn
+                visible: root.clipUrl.toString() !== ""
+                flat: true
+                hoverEnabled: true
+                width: 72
+                height: 32
+
+                contentItem: Text {
+                    text: "⤓ " + qsTr("Save")
+                    color: saveBtn.hovered ? Theme.accent : Theme.text
+                    font.pixelSize: 13
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: 16
+                    color: saveBtn.hovered ? Theme.surfaceHover : Theme.overlay
+                    border.color: Theme.border
+                    border.width: 1
+                }
+                onClicked: {
+                    saveDialog.currentFolder = StandardPaths.writableLocation(StandardPaths.MoviesLocation)
+                    saveDialog.selectedFile = StandardPaths.writableLocation(StandardPaths.MoviesLocation)
+                        + "/" + root.suggestedName()
+                    saveDialog.open()
+                }
             }
-            onClicked: root.close()
+
+            // Close button
+            Button {
+                id: closeBtn
+                flat: true
+                hoverEnabled: true
+                width: 32
+                height: 32
+
+                contentItem: Text {
+                    text: "✕"
+                    color: closeBtn.hovered ? Theme.danger : Theme.text
+                    font.pixelSize: 15
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: 16
+                    color: closeBtn.hovered ? Theme.surfaceHover : Theme.overlay
+                }
+                onClicked: root.close()
+            }
         }
     }
 }

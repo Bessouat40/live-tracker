@@ -9,6 +9,8 @@ Rectangle {
     required property real latitude
     required property real longitude
     required property string videoPath
+    required property double confidence
+    required property double timestamp
 
     readonly property bool selected: mainWindow.selectedIndex === positionItem.index
 
@@ -20,9 +22,9 @@ Rectangle {
     Layout.alignment: Qt.AlignLeft
     width: parent.width
 
-    readonly property bool isMatch: mainWindow.filter === "" || label.includes(mainWindow.filter)
+    readonly property bool isMatch: mainWindow.matchesFilters(positionItem.label, positionItem.confidence, positionItem.timestamp)
     visible: isMatch
-    height: isMatch ? 64 : 0
+    height: isMatch ? 84 : 0
 
     clip: true
 
@@ -63,6 +65,36 @@ Rectangle {
                 font.pixelSize: 11
                 color: Theme.textMuted
                 Layout.fillWidth: true
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingSm
+
+                Label {
+                    text: mainWindow.timeAgo(positionItem.timestamp)
+                    font.pixelSize: 10
+                    color: Theme.textFaint
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Rectangle {
+                    visible: positionItem.confidence > 0
+                    Layout.preferredHeight: 16
+                    Layout.preferredWidth: confLabel.implicitWidth + 2 * Theme.spacingSm
+                    radius: Theme.radiusSm
+                    color: Theme.surfaceHover
+
+                    Label {
+                        id: confLabel
+                        anchors.centerIn: parent
+                        text: Math.round(positionItem.confidence * 100) + "%"
+                        font.pixelSize: 10
+                        font.bold: true
+                        color: Theme.textMuted
+                    }
+                }
             }
         }
 

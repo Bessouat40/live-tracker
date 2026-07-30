@@ -45,7 +45,7 @@ std::vector<Detection> CameraStreaming::detectObjects(cv::Mat &frame) {
             if (m_clipRequests.size() >= MAX_PENDING_CLIPS)
                 break;
             GpsPosition pos = gps.getPositions();
-            m_clipRequests.push_back({pos.latitude, pos.longitude, track.label});
+            m_clipRequests.push_back({pos.latitude, pos.longitude, track.label, track.confidence});
         }
     }
 
@@ -69,7 +69,7 @@ void CameraStreaming::startClip(const ClipRequest &req, const cv::Size &frameSiz
 
     if (!m_clipWriter.isOpened()) {
         std::cerr << "CameraStreaming: could not open VideoWriter for " << path << std::endl;
-        emit positionMocked(req.lat, req.lon, QString::fromStdString(req.label), QString());
+        emit positionMocked(req.lat, req.lon, QString::fromStdString(req.label), QString(), req.confidence);
         return;
     }
 
@@ -77,6 +77,7 @@ void CameraStreaming::startClip(const ClipRequest &req, const cv::Size &frameSiz
     m_currentClip.lat = req.lat;
     m_currentClip.lon = req.lon;
     m_currentClip.label = req.label;
+    m_currentClip.confidence = req.confidence;
 
     const std::string absPath = fs::absolute(path, ec).string();
     m_currentClip.url = QUrl::fromLocalFile(QString::fromStdString(absPath)).toString();
@@ -104,7 +105,7 @@ void CameraStreaming::handleClipRecording(const cv::Mat &annotatedFrame) {
             m_clipWriter.release();
             emit positionMocked(m_currentClip.lat, m_currentClip.lon,
                                 QString::fromStdString(m_currentClip.label),
-                                m_currentClip.url);
+                                m_currentClip.url, m_currentClip.confidence);
         }
     }
 }

@@ -35,7 +35,7 @@ public:
     void inferenceLoop();
 
 signals:
-    void positionMocked(double latitude, double longitude, QString label, QString clipPath);
+    void positionMocked(double latitude, double longitude, QString label, QString clipPath, double confidence);
     void isRunningChanged();
     void newFrameReady();
 
@@ -61,8 +61,8 @@ private:
 
     Tracker tracker;
 
-    struct ClipRequest { double lat; double lon; std::string label; };
-    struct ActiveClip  { double lat; double lon; std::string label; QString url; };
+    struct ClipRequest { double lat; double lon; std::string label; float confidence; };
+    struct ActiveClip  { double lat; double lon; std::string label; float confidence; QString url; };
 
     std::deque<ClipRequest> m_clipRequests;
     std::mutex m_clipRequestMutex;

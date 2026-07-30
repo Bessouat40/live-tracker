@@ -25,13 +25,8 @@ Rectangle {
             camera.startStream()
         }
 
-        onPositionMocked: function(latitude, longitude, label, clipPath) {
-            positionList.append({
-                "latitude": latitude,
-                "longitude": longitude,
-                "label": label,
-                "videoPath": clipPath
-            })
+        onPositionMocked: function(latitude, longitude, label, clipPath, confidence) {
+            positionList.addFinding(latitude, longitude, label, clipPath, confidence)
         }
     }
 

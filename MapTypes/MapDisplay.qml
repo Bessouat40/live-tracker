@@ -12,6 +12,31 @@ Map {
     zoomLevel: 14
     property geoCoordinate startCentroid
 
+    // ── Geographic zone (optional, used by the Timeline view) ───────────
+    // When drawMode is true, dragging on the map traces a rectangular zone
+    // instead of panning. hasZone flags an active zone; z* are its bounds.
+    property bool drawMode: false
+    property bool hasZone: false
+    property double zMinLat: 0
+    property double zMaxLat: 0
+    property double zMinLon: 0
+    property double zMaxLon: 0
+
+    signal zoneChanged()
+
+    function inZone(lat, lon) {
+        if (!map.hasZone)
+            return true
+        return lat >= map.zMinLat && lat <= map.zMaxLat
+            && lon >= map.zMinLon && lon <= map.zMaxLon
+    }
+
+    function clearZone() {
+        map.hasZone = false
+        map.zMinLat = 0; map.zMaxLat = 0; map.zMinLon = 0; map.zMaxLon = 0
+        map.zoneChanged()
+    }
+
     function centerOn(latitude, longitude) {
         map.center = QtPositioning.coordinate(latitude, longitude)
         map.zoomLevel = 16
@@ -52,6 +77,17 @@ Map {
         onTranslationChanged: (delta) => map.pan(-delta.x, -delta.y)
     }
 
+    // Visible zone rectangle. topLeft = (north, west), bottomRight = (south, east).
+    MapRectangle {
+        id: zoneRect
+        visible: map.hasZone
+        topLeft: QtPositioning.coordinate(map.zMaxLat, map.zMinLon)
+        bottomRight: QtPositioning.coordinate(map.zMinLat, map.zMaxLon)
+        color: "#2638bdf8"
+        border.color: Theme.accent
+        border.width: 2
+    }
+
     MapItemView {
         model: positionList
         delegate: MapQuickItem {
@@ -60,10 +96,13 @@ Map {
             required property real latitude
             required property real longitude
             required property string label
+            required property double confidence
+            required property double timestamp
 
             coordinate: QtPositioning.coordinate(latitude, longitude)
             anchorPoint.x: 16
             anchorPoint.y: 32
+            visible: mainWindow.matchesFilters(pin.label, pin.confidence, pin.timestamp)
 
             sourceItem: Item {
                 width: 32
@@ -115,6 +154,8 @@ Map {
 
                     text: (pin.label ? "<b>" + pin.label + "</b><br>" : "")
                         + "Lat: " + pin.latitude.toFixed(5) + "<br>Lon: " + pin.longitude.toFixed(5)
+                        + (pin.confidence > 0 ? "<br>Conf: " + Math.round(pin.confidence * 100) + "%" : "")
+                        + "<br>" + mainWindow.timeAgo(pin.timestamp)
 
                     background: Rectangle {
                         color: Theme.overlay
@@ -131,6 +172,51 @@ Map {
                     }
                 }
             }
+        }
+    }
+
+    // Drag-to-draw overlay. Only active in drawMode, so normal pan/zoom is
+    // untouched otherwise. Screen points are converted to map coordinates.
+    MouseArea {
+        id: drawArea
+        anchors.fill: parent
+        enabled: map.drawMode
+        visible: map.drawMode
+        cursorShape: Qt.CrossCursor
+        preventStealing: true
+        z: 1000
+
+        property point startPt
+        property bool dragging: false
+
+        onPressed: (mouse) => {
+            drawArea.startPt = Qt.point(mouse.x, mouse.y)
+            drawArea.dragging = true
+            let c = map.toCoordinate(drawArea.startPt, false)
+            map.zMinLat = c.latitude; map.zMaxLat = c.latitude
+            map.zMinLon = c.longitude; map.zMaxLon = c.longitude
+            map.hasZone = true
+        }
+
+        onPositionChanged: (mouse) => {
+            if (!drawArea.dragging)
+                return
+            let c1 = map.toCoordinate(drawArea.startPt, false)
+            let c2 = map.toCoordinate(Qt.point(mouse.x, mouse.y), false)
+            map.zMinLat = Math.min(c1.latitude, c2.latitude)
+            map.zMaxLat = Math.max(c1.latitude, c2.latitude)
+            map.zMinLon = Math.min(c1.longitude, c2.longitude)
+            map.zMaxLon = Math.max(c1.longitude, c2.longitude)
+        }
+
+        onReleased: (mouse) => {
+            drawArea.dragging = false
+            map.drawMode = false
+            // Discard accidental clicks / zero-size zones.
+            if (map.zMaxLat - map.zMinLat < 1e-6 && map.zMaxLon - map.zMinLon < 1e-6)
+                map.clearZone()
+            else
+                map.zoneChanged()
         }
     }
 }
