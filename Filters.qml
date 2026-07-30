@@ -6,13 +6,20 @@ Popup {
     id: positionFilters
     modal: true
     focus: true
-    
+
     width: Math.min(400, parent.width * 0.9)
     height: Math.min(600, contentLayout.implicitHeight + topPadding + bottomPadding)
     x: (parent.width - width) / 2
-    y: (parent.height - height) / 2 
+    y: (parent.height - height) / 2
 
-    padding: 20
+    background: Rectangle {
+        color: Theme.surface
+        border.color: Theme.border
+        border.width: 1
+        radius: Theme.radiusLg
+    }
+
+    padding: Theme.spacingXxl
 
     property var availableLabels: []
 
@@ -21,21 +28,41 @@ Popup {
     ColumnLayout {
         id: contentLayout
         anchors.fill: parent
-        spacing: 20
+        spacing: Theme.spacingXl
 
         RowLayout {
             Layout.fillWidth: true
-            
+
             Label {
                 text: qsTr("Filter by Label")
-                font.pixelSize: 20
+                font.pixelSize: 18
                 font.bold: true
+                color: Theme.text
                 Layout.fillWidth: true
             }
-            
-            ToolButton {
+
+            Button {
+                id: closeBtn
                 text: "✕"
-                font.pixelSize: 18
+                flat: true
+                hoverEnabled: true
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+
+                contentItem: Text {
+                    text: closeBtn.text
+                    color: closeBtn.hovered ? Theme.danger : Theme.textMuted
+                    font.pixelSize: 14
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: closeBtn.hovered ? Theme.surfaceHover : "transparent"
+                    radius: 16
+                }
+
                 onClicked: positionFilters.close()
             }
         }
@@ -43,7 +70,7 @@ Popup {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            color: "#eeeeee"
+            color: Theme.border
         }
 
         ScrollView {
@@ -54,7 +81,7 @@ Popup {
 
             ColumnLayout {
                 width: parent.width
-                spacing: 10
+                spacing: Theme.spacingMd
 
                 ButtonGroup {
                     id: radioGroup
@@ -67,50 +94,60 @@ Popup {
                     model: positionFilters.availableLabels
 
                     delegate: RadioButton {
-                        text: modelData 
-                        ButtonGroup.group: radioGroup 
-                        font.pixelSize: 16
+                        id: rBtn
+                        required property string modelData
+                        text: modelData
+                        ButtonGroup.group: radioGroup
+                        font.pixelSize: 14
                         Layout.fillWidth: true
+                        hoverEnabled: true
+
+                        indicator: Rectangle {
+                            implicitWidth: 20
+                            implicitHeight: 20
+                            x: rBtn.leftPadding
+                            y: parent.height / 2 - height / 2
+                            radius: 10
+                            color: Theme.background
+                            border.color: rBtn.checked ? Theme.accent
+                                        : (rBtn.hovered ? Theme.textDisabled : Theme.border)
+                            border.width: rBtn.checked ? 6 : 1
+                        }
+
+                        contentItem: Text {
+                            text: rBtn.text
+                            font: rBtn.font
+                            color: rBtn.checked ? Theme.accent : Theme.text
+                            leftPadding: rBtn.indicator.width + rBtn.spacing
+                            verticalAlignment: Text.AlignVCenter
+                        }
                     }
                 }
-                
+
                 Label {
-                    text: qsTr("No label available")
+                    text: qsTr("No labels available")
                     visible: positionFilters.availableLabels.length === 0
                     font.italic: true
-                    color: "#888888"
+                    color: Theme.textFaint
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 20
+                    Layout.topMargin: Theme.spacingXl
                 }
             }
         }
 
-        Button {
+        ThemedButton {
             text: qsTr("Clear Filter")
             Layout.fillWidth: true
-            Layout.preferredHeight: 45
-            
-            contentItem: Text {
-                text: parent.text
-                font.pixelSize: 16
-                font.bold: true
-                color: parent.down ? "#ffffff" : "#d32f2f"
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            
-            background: Rectangle {
-                color: parent.down ? "#d32f2f" : "#ffebee"
-                radius: 8
-                border.color: "#d32f2f"
-                border.width: 1
-            }
+            bgColor: Theme.dangerSurface
+            bgHover: Theme.danger
+            contentColor: Theme.danger
+            contentHover: Theme.textOnAccent
+            borderColor: Theme.danger
 
             onClicked: {
                 if (radioGroup.checkedButton) {
                     radioGroup.checkedButton.checked = false
                 }
-                
                 positionFilters.filterSelected("")
                 positionFilters.close()
             }

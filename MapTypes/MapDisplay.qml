@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import QtLocation
 import QtPositioning
 
@@ -12,15 +11,10 @@ Map {
     center: QtPositioning.coordinate(59.91, 10.75)
     zoomLevel: 14
     property geoCoordinate startCentroid
-    property int activeIndex: -1
-    function setActive(active, latitude, longitude, index) {
-        if (active) {
-            map.activeIndex = index
-            map.center = QtPositioning.coordinate(latitude, longitude)
-            map.zoomLevel = 16
-        } else {
-            map.activeIndex = -1
-        }
+
+    function centerOn(latitude, longitude) {
+        map.center = QtPositioning.coordinate(latitude, longitude)
+        map.zoomLevel = 16
     }
 
     PinchHandler {
@@ -39,6 +33,7 @@ Map {
         }
         grabPermissions: PointerHandler.TakeOverForbidden
     }
+
     WheelHandler {
         id: wheel
         // workaround for QTBUG-87646 / QTBUG-112394 / QTBUG-112432:
@@ -50,6 +45,7 @@ Map {
         rotationScale: 1/120
         property: "zoomLevel"
     }
+
     DragHandler {
         id: drag
         target: null
@@ -58,28 +54,81 @@ Map {
 
     MapItemView {
         model: positionList
-        delegate: MapCircle {
+        delegate: MapQuickItem {
+            id: pin
             required property int index
             required property real latitude
             required property real longitude
+            required property string label
 
-            center: QtPositioning.coordinate(latitude, longitude)
-            
-            radius: 10.0 
-            color: map.activeIndex === index ? 'yellow' : 'green'
-            border.color: 'black'
-            border.width: 3
+            coordinate: QtPositioning.coordinate(latitude, longitude)
+            anchorPoint.x: 16
+            anchorPoint.y: 32
+
+            sourceItem: Item {
+                width: 32
+                height: 32
+
+                // Pin head
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: 2
+                    width: 24
+                    height: 24
+                    radius: 12
+                    color: mainWindow.selectedIndex === pin.index ? Theme.active : Theme.accentStrong
+                    border.color: Theme.textOnAccent
+                    border.width: 2
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 8
+                        height: 8
+                        radius: 4
+                        color: Theme.background
+                    }
+                }
+
+                // Pin tip
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: 16
+                    width: 10
+                    height: 10
+                    color: mainWindow.selectedIndex === pin.index ? Theme.active : Theme.accentStrong
+                    rotation: 45
+                    z: -1
+                }
+            }
 
             MouseArea {
+                id: pinMouse
                 anchors.fill: parent
-                hoverEnabled: true // Ici, la propriété existe bien !
+                hoverEnabled: true
+
+                onClicked: mainWindow.selectFinding(pin.index, false)
 
                 ToolTip {
-                    // On affiche le ToolTip quand la souris survole le MouseArea
-                    visible: parent.containsMouse
-                    
-                    text: "Lat: " + latitude.toFixed(4) + "\nLon: " + longitude.toFixed(4)
-                    delay: 100 
+                    id: pinTip
+                    visible: pinMouse.containsMouse
+                    delay: 100
+
+                    text: (pin.label ? "<b>" + pin.label + "</b><br>" : "")
+                        + "Lat: " + pin.latitude.toFixed(5) + "<br>Lon: " + pin.longitude.toFixed(5)
+
+                    background: Rectangle {
+                        color: Theme.overlay
+                        border.color: Theme.border
+                        border.width: 1
+                        radius: Theme.radiusSm
+                    }
+
+                    contentItem: Text {
+                        text: pinTip.text
+                        color: Theme.text
+                        font.pixelSize: 11
+                        textFormat: Text.RichText
+                    }
                 }
             }
         }
