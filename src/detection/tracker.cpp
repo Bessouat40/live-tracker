@@ -24,6 +24,7 @@ std::vector<Track> Tracker::update(const std::vector<Detection> &detections) {
     for (auto &t : m_tracks)
         t.timeSinceUpdate++;
 
+    // Detect Pairs
     std::vector<cv::Rect> detBoxes;
     detBoxes.reserve(detections.size());
     for (const auto &d : detections)
@@ -43,6 +44,7 @@ std::vector<Track> Tracker::update(const std::vector<Detection> &detections) {
     std::sort(pairs.begin(), pairs.end(),
               [](const Pair &a, const Pair &b) { return a.iou > b.iou; });
 
+    // Update registered tracks according to new detections
     std::vector<bool> trackUsed(m_tracks.size(), false);
     std::vector<bool> detMatched(detections.size(), false);
     for (const auto &p : pairs) {
@@ -58,6 +60,7 @@ std::vector<Track> Tracker::update(const std::vector<Detection> &detections) {
         t.timeSinceUpdate = 0;
     }
 
+    // Register new detections
     for (std::size_t di = 0; di < detections.size(); ++di) {
         if (detMatched[di])
             continue;
@@ -72,6 +75,7 @@ std::vector<Track> Tracker::update(const std::vector<Detection> &detections) {
         m_tracks.push_back(t);
     }
 
+    // Return only new tracks
     std::vector<Track> confirmed;
     for (auto &t : m_tracks) {
         if (!t.emitted && t.hits >= m_minHits && t.timeSinceUpdate == 0) {
