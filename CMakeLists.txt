@@ -14,34 +14,34 @@ qt_add_executable(applive-tracker
     main.cpp
 )
 
-set_source_files_properties(Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(applive-tracker
     URI live-tracker
     VERSION 1.0
     QML_FILES
         Main.qml
-        Theme.qml
-        ThemedButton.qml
-        Filters.qml
-        VideoPopup.qml
-        PositionTypes/PositionItem.qml
-        MapTypes/MapDisplay.qml
-        CameraViewer/CameraViewer.qml
-        TimelineTypes/TimelineView.qml
+        qml/Theme.qml
+        qml/ThemedButton.qml
+        qml/Filters.qml
+        qml/VideoPopup.qml
+        qml/PositionItem.qml
+        qml/MapDisplay.qml
+        qml/CameraViewer.qml
+        qml/TimelineView.qml
     SOURCES
         src/camera_streaming.h
         src/camera_streaming.cpp
-        src/yolo_model.h
-        src/yolo_model.cpp
-        src/gps.cpp
-        src/gps.h
-        src/image_painter.h
-        src/image_painter.cpp
-        src/tracker.h
-        src/tracker.cpp
-        src/finding_store.h
-        src/finding_store.cpp
+        src/detection/yolo_model.h
+        src/detection/yolo_model.cpp
+        src/position/gps.cpp
+        src/position/gps.h
+        src/utils/image_painter.h
+        src/utils/image_painter.cpp
+        src/detection/tracker.h
+        src/detection/tracker.cpp
+        src/stores/finding_store.h
+        src/stores/finding_store.cpp
     DEPENDENCIES
         QtLocation
         QtPositioning
@@ -59,7 +59,7 @@ set_target_properties(applive-tracker PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src)
+target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src ${CMAKE_CURRENT_SOURCE_DIR}/src/stores)
 target_link_libraries(applive-tracker
     PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
 )
