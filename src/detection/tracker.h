@@ -22,6 +22,7 @@ public:
     std::vector<Track> update(const std::vector<Detection> &detections);
 
 private:
+    // Intersection over Union algorithm
     static float iou(const cv::Rect &a, const cv::Rect &b);
 
     std::vector<Track> m_tracks;

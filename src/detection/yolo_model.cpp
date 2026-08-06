@@ -85,14 +85,21 @@ std::vector<Detection> YoloModel::getOVDetections(cv::Mat &image) {
     cv::transpose(predictions, predictions);
 
     for(int i = 0; i < predictions.rows; i++) {
-        float* data = predictions.ptr<float>(i);
-        
-        int numClasses = predictions.cols - 4; 
-        cv::Mat scores(1, numClasses, CV_32FC1, data + 4);
-        
-        double maxClassScore;
-        cv::Point classIdPoint;
-        cv::minMaxLoc(scores, 0, &maxClassScore, 0, &classIdPoint);
+        const float* data = predictions.ptr<float>(i);
+
+        const int numClasses = predictions.cols - 4;
+        const float* classScores = data + 4;
+
+        auto bestScoreIterator = std::max_element(
+            classScores,
+            classScores + numClasses
+        );
+
+        const float maxClassScore = *bestScoreIterator;
+
+        const int classId = static_cast<int>(
+            std::distance(classScores, bestScoreIterator)
+        );
         
         if(maxClassScore > 0.5) {
             float x = data[0] * x_factor;
@@ -104,8 +111,8 @@ std::vector<Detection> YoloModel::getOVDetections(cv::Mat &image) {
             int top = static_cast<int>(y - h / 2);
 
             Detection detection;
-            detection.classId = classIdPoint.x;
-            detection.label = classNames[classIdPoint.x];
+            detection.classId = classId;
+            detection.label = classNames[classId];
             detection.confidence = static_cast<float>(maxClassScore);
             detection.position = {left, top, static_cast<int>(w), static_cast<int>(h)};
             

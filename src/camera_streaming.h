@@ -9,10 +9,10 @@
 #include <mutex>
 #include <atomic>
 #include <deque>
-#include "yolo_model.h"
-#include "image_painter.h"
-#include "gps.h"
-#include "tracker.h"
+#include "detection/yolo_model.h"
+#include "utils/image_painter.h"
+#include "position/gps.h"
+#include "detection/tracker.h"
 
 class CameraStreaming : public QQuickPaintedItem
 {
