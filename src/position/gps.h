@@ -12,7 +12,7 @@ class Gps
 
 public:
     explicit Gps() = default;
+    Gps(const std::string& sourcePath);
     
-    void load(std::string sourcePath);
-    GpsPosition getPositions();
+    GpsPosition getPosition();
 };

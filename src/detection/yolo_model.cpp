@@ -1,17 +1,23 @@
 #include "yolo_model.h"
 #include <opencv2/dnn.hpp>
 #include <opencv2/opencv.hpp>
+#include <algorithm>
+#include <fstream>
+#include <iostream>
 
+using namespace cv::dnn;
 
-void YoloModel::load(std::string modelPath, std::string classNamesPath) {
-    net = readNetFromONNX(modelPath);
-    net.setPreferableBackend(DNN_BACKEND_OPENCV);
-    net.setPreferableTarget(DNN_TARGET_CPU);
-    classNames = getClassNames(classNamesPath);
-    ov::Core core;
-    compiled_model = core.compile_model(modelPath, "AUTO");
-    infer_request = compiled_model.create_infer_request();
-};
+YoloModel::YoloModel(
+    const std::string& modelPath,
+    const std::string& classNamesPath)
+    : net(cv::dnn::readNetFromONNX(modelPath)),
+      compiled_model(core.compile_model(modelPath, "AUTO")),
+      infer_request(compiled_model.create_infer_request()),
+      classNames(getClassNames(classNamesPath))
+{
+    net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+    net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+}
 
 std::vector<std::string> YoloModel::getClassNames(const std::string &path) {
     std::vector<std::string> classNames;
@@ -32,7 +38,7 @@ std::vector<std::string> YoloModel::getClassNames(const std::string &path) {
     return classNames;
 }
 
-std::vector<Detection> YoloModel::runInference(cv::Mat &image) {
+std::vector<Detection> YoloModel::runInference(const cv::Mat &image) {
     std::vector<Detection> rawDetections = getOVDetections(image);
     // std::vector<Detection> rawDetections = getDetections(image);
     
@@ -60,7 +66,7 @@ std::vector<Detection> YoloModel::runInference(cv::Mat &image) {
     return finalDetections;
 }
 
-std::vector<Detection> YoloModel::getOVDetections(cv::Mat &image) {
+std::vector<Detection> YoloModel::getOVDetections(const cv::Mat &image) {
     std::vector<Detection> detections;
     
     cv::Mat blob = cv::dnn::blobFromImage(image, 1.0/255.0, cv::Size(640, 640), 
@@ -123,7 +129,7 @@ std::vector<Detection> YoloModel::getOVDetections(cv::Mat &image) {
     return detections;
 }
 
-std::vector<Detection> YoloModel::getDetections(cv::Mat &image) {
+std::vector<Detection> YoloModel::getDetections(const cv::Mat &image) {
     std::vector<Detection> detections;
     cv::Mat blob = cv::dnn::blobFromImage(image, 1.0/255.0, cv::Size(640, 640), 
                                     cv::Scalar(), true, false);
