@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
+#include <unordered_map>
 
 using namespace cv::dnn;
 
@@ -17,6 +19,10 @@ YoloModel::YoloModel(
 {
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
     net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+
+    // Without labels every detection would index an empty vector.
+    if (classNames.empty())
+        throw std::runtime_error("YoloModel: no class names loaded from " + classNamesPath);
 }
 
 std::vector<std::string> YoloModel::getClassNames(const std::string &path) {
@@ -41,28 +47,38 @@ std::vector<std::string> YoloModel::getClassNames(const std::string &path) {
 std::vector<Detection> YoloModel::runInference(const cv::Mat &image) {
     std::vector<Detection> rawDetections = getOVDetections(image);
     // std::vector<Detection> rawDetections = getDetections(image);
-    
-    std::vector<cv::Rect> boxes;
-    std::vector<float> confidences;
-    
-    for (const auto& det : rawDetections) {
-        boxes.push_back(cv::Rect(det.position.x, det.position.y, static_cast<int>(det.position.w), static_cast<int>(det.position.h)));
-        confidences.push_back(det.confidence);
-    }
 
-    std::vector<int> nmsIndices;
-    float scoreThreshold = 0.5f; 
-    float nmsThreshold = 0.4f;   
-    
-    cv::dnn::NMSBoxes(boxes, confidences, scoreThreshold, nmsThreshold, nmsIndices);
+    const float scoreThreshold = 0.5f;
+    const float nmsThreshold = 0.4f;
+
+    // NMS must run per class. Run globally, a high-confidence "person" would
+    // suppress an overlapping "bicycle" even though they are distinct objects.
+    std::unordered_map<int, std::vector<std::size_t>> indicesByClass;
+    for (std::size_t i = 0; i < rawDetections.size(); ++i)
+        indicesByClass[rawDetections[i].classId].push_back(i);
 
     std::vector<Detection> finalDetections;
-    finalDetections.reserve(nmsIndices.size()); 
-    
-    for (int idx : nmsIndices) {
-        finalDetections.push_back(rawDetections[idx]);
+    finalDetections.reserve(rawDetections.size());
+
+    for (const auto &[classId, indices] : indicesByClass) {
+        std::vector<cv::Rect> boxes;
+        std::vector<float> confidences;
+        boxes.reserve(indices.size());
+        confidences.reserve(indices.size());
+
+        for (std::size_t idx : indices) {
+            const auto &det = rawDetections[idx];
+            boxes.emplace_back(det.position.x, det.position.y, det.position.w, det.position.h);
+            confidences.push_back(det.confidence);
+        }
+
+        std::vector<int> kept;
+        cv::dnn::NMSBoxes(boxes, confidences, scoreThreshold, nmsThreshold, kept);
+
+        for (int k : kept)
+            finalDetections.push_back(rawDetections[indices[k]]);
     }
-    
+
     return finalDetections;
 }
 
@@ -108,11 +124,15 @@ std::vector<Detection> YoloModel::getOVDetections(const cv::Mat &image) {
         );
         
         if(maxClassScore > 0.5) {
+            // The model's class count and labels.txt can disagree.
+            if (classId < 0 || static_cast<std::size_t>(classId) >= classNames.size())
+                continue;
+
             float x = data[0] * x_factor;
             float y = data[1] * y_factor;
             float w = data[2] * x_factor;
             float h = data[3] * y_factor;
-            
+
             int left = static_cast<int>(x - w / 2);
             int top = static_cast<int>(y - h / 2);
 
@@ -161,11 +181,15 @@ std::vector<Detection> YoloModel::getDetections(const cv::Mat &image) {
             cv::minMaxLoc(scores, 0, &maxClassScore, 0, &classIdPoint);
             
             if(maxClassScore > 0.5) {
+                if (classIdPoint.x < 0 ||
+                    static_cast<std::size_t>(classIdPoint.x) >= classNames.size())
+                    continue;
+
                 float x = data[0] * x_factor;
                 float y = data[1] * y_factor;
                 float w = data[2] * x_factor;
                 float h = data[3] * y_factor;
-                
+
                 int left = static_cast<int>(x - w / 2);
                 int top = static_cast<int>(y - h / 2);
 

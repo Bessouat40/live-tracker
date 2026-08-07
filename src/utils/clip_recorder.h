@@ -6,7 +6,11 @@
 
 class ClipRecorder {
     public:
-        void startRecording(
+        // Returns false when the clip cannot be started (already recording,
+        // invalid fps/frame, or the writer refuses to open). Never throws:
+        // callers run on the capture thread, where an escaping exception
+        // would terminate the process.
+        bool startRecording(
             const std::string& id,
             const std::string& path,
             const cv::Mat& frame,
@@ -17,5 +21,10 @@ class ClipRecorder {
         bool checkRecord(const std::string& id) const;
 
     private:
-        std::unordered_map<std::string, cv::VideoWriter> m_videoWriters;
+        struct Record {
+            cv::VideoWriter writer;
+            cv::Size frameSize; // writers reject frames of any other size
+        };
+
+        std::unordered_map<std::string, Record> m_records;
 };

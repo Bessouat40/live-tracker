@@ -37,7 +37,9 @@ ApplicationWindow {
     }
 
     function matchesFilters(label, confidence, timestamp) {
-        if (filter !== "" && !label.includes(filter))
+        // Exact match: the filter comes from a radio button listing existing
+        // labels, so "car" must not also select "caravan".
+        if (filter !== "" && label !== filter)
             return false
         if (confidence < minConfidence)
             return false
@@ -90,8 +92,19 @@ ApplicationWindow {
 
     Connections {
         target: FindingStore
-        function onCountChanged() { mainWindow.updateLabels() }
+        function onCountChanged() {
+            mainWindow.updateLabels()
+            // Bring the map to the tracked area on the very first finding,
+            // otherwise the default centre may be nowhere near the pins.
+            if (!mainWindow.mapCentered && positionList.count > 0) {
+                mainWindow.mapCentered = true
+                let first = positionList.get(0)
+                map.centerOn(first.latitude, first.longitude)
+            }
+        }
     }
+
+    property bool mapCentered: false
 
     function timeAgo(ts) {
         let diff = Math.max(0, (mainWindow.now - ts) / 1000)
@@ -173,10 +186,24 @@ ApplicationWindow {
                         id: tabItem
                         required property int index
                         required property string modelData
-                        Layout.preferredWidth: tabText.implicitWidth
-                        Layout.fillHeight: true
 
                         readonly property bool current: mainWindow.currentTab === tabItem.index
+
+                        // Width is measured on the bold text whatever the state:
+                        // sizing the layout from tabText.implicitWidth instead
+                        // couples it to font.bold, which the click itself flips.
+                        // That loop leaves the item — and its MouseArea — with a
+                        // stale width, so clicks land outside the hit area.
+                        TextMetrics {
+                            id: tabMetrics
+                            text: tabItem.modelData
+                            font.pixelSize: 14
+                            font.bold: true
+                        }
+
+                        implicitWidth: tabMetrics.width + 2 * Theme.spacingMd
+                        Layout.preferredWidth: implicitWidth
+                        Layout.fillHeight: true
 
                         Label {
                             id: tabText

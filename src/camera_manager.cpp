@@ -6,9 +6,14 @@
 CameraManager::CameraManager(QQuickItem *parent)
     : QQuickPaintedItem(parent),
       m_yoloModel("models/yolo26n.onnx", "models/labels.txt"),
-      m_running(false),
-      m_gps("")
+      m_gps(""),
+      m_running(false)
 {
+    std::error_code ec;
+    std::filesystem::create_directories("captures", ec);
+    if (ec)
+        std::cerr << "CameraManager: cannot create captures/: " << ec.message() << std::endl;
+
     connect(this, &CameraManager::newFrameReady,
             this, &QQuickItem::update,
             Qt::QueuedConnection);
@@ -66,7 +71,6 @@ void CameraManager::inferenceLoop() {
     cv::Mat frameToProcess;
 
     while (m_running) {
-        int t1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
         {
             std::lock_guard<std::mutex> lock(m_rawFrameMutex);
             if (!m_latestRawFrame.empty()) {
@@ -85,15 +89,18 @@ void CameraManager::inferenceLoop() {
             std::lock_guard<std::mutex> lock(m_detectionsMutex);
             m_latestDetections = detections;
         }
-
-        std::cout << "Inference loop duration: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - t1) << " ms" << std::endl;
     }
 }
 
 void CameraManager::captureLoop() {
     while (m_running) {
         cv::Mat frame = m_cameraSource.getLatestFrame();
-        if (frame.empty()) continue;
+        if (frame.empty()) {
+            // No source, or the video file ended: back off instead of
+            // spinning a core at 100%.
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
         {
             std::lock_guard<std::mutex> lock(m_rawFrameMutex);
             m_latestRawFrame = frame.clone(); 
@@ -143,46 +150,62 @@ void CameraManager::stopStream() {
 
 void CameraManager::handleClipRecording(const cv::Mat& annotatedFrame)
 {
-    std::vector<ClipRequest> clipRequests;
+    if (annotatedFrame.empty())
+        return;
+
+    const int totalFrames = std::max(1, static_cast<int>(m_captureFps * CLIP_SECONDS));
+
+    // Clips whose recording ended on this frame. Collected under the lock and
+    // emitted outside of it, so a slot can never re-enter us while we hold it.
+    std::vector<ClipRequest> finished;
+
     {
         std::lock_guard<std::mutex> lock(m_clipRequestMutex);
-        clipRequests = m_clipRequests;
+
+        // Iterate m_clipRequests directly: mutating a copy would drop every
+        // framesNumber increment and its iterators are not valid here anyway.
+        for (auto it = m_clipRequests.begin(); it != m_clipRequests.end(); ) {
+            ClipRequest &request = *it;
+
+            if (!m_clipRecorder.checkRecord(request.id)) {
+                const std::string path = "captures/" + request.id + ".mp4";
+
+                if (!m_clipRecorder.startRecording(request.id, path, annotatedFrame, m_captureFps)) {
+                    // No writer: still report the finding, just without a clip.
+                    request.path.clear();
+                    finished.push_back(request);
+                    it = m_clipRequests.erase(it);
+                    continue;
+                }
+
+                request.path = path;
+                request.framesNumber = 1;
+                ++it;
+            }
+            else if (request.framesNumber < totalFrames) {
+                m_clipRecorder.addFrameToRecord(request.id, annotatedFrame);
+                ++request.framesNumber;
+                ++it;
+            }
+            else {
+                m_clipRecorder.stopRecording(request.id);
+                finished.push_back(request);
+                it = m_clipRequests.erase(it);
+            }
+        }
     }
 
-    for (auto it = clipRequests.begin(); it != clipRequests.end(); ) {
-        auto& request = *it;
-
-        if (!m_clipRecorder.checkRecord(request.id)) {
-            const std::string path =
-                "captures/" + request.id + ".mp4";
-
-            m_clipRecorder.startRecording(
-                request.id,
-                path,
-                annotatedFrame,
-                m_captureFps
-            );
-
-            ++request.framesNumber;
-            ++it;
+    for (const auto &clip : finished) {
+        QString url;
+        if (!clip.path.empty()) {
+            std::error_code ec;
+            const std::string absPath = std::filesystem::absolute(clip.path, ec).string();
+            if (!ec)
+                url = QUrl::fromLocalFile(QString::fromStdString(absPath)).toString();
         }
-        else if (request.framesNumber <
-                 static_cast<int>(m_captureFps * CLIP_SECONDS)) {
 
-            m_clipRecorder.addFrameToRecord(
-                request.id,
-                annotatedFrame
-            );
-
-            ++request.framesNumber;
-            ++it;
-        }
-        else {
-            m_clipRecorder.stopRecording(request.id);
-
-            // emit positionMocked(...) ici si nécessaire
-
-            it = m_clipRequests.erase(it);
-        }
+        emit positionMocked(clip.lat, clip.lon,
+                            QString::fromStdString(clip.label),
+                            url, clip.confidence);
     }
 }

@@ -1,46 +1,77 @@
 #include "clip_recorder.h"
 
-#include <stdexcept>
+#include <iostream>
 
-void ClipRecorder::startRecording(
+bool ClipRecorder::startRecording(
     const std::string& id,
     const std::string& path,
     const cv::Mat& frame,
     double fps)
 {
-    if (m_videoWriters.find(id) != m_videoWriters.end())
-        throw std::invalid_argument("Recording already exists");
+    if (m_records.find(id) != m_records.end())
+        return false;
 
-    cv::VideoWriter writer(
+    if (frame.empty() || fps <= 0.0) {
+        std::cerr << "ClipRecorder: refusing to record " << id
+                  << " (empty frame or fps <= 0)" << std::endl;
+        return false;
+    }
+
+    Record record;
+    record.frameSize = frame.size();
+    record.writer.open(
         path,
-        cv::VideoWriter::fourcc('m', 'p', '4', 'v'),
+        cv::VideoWriter::fourcc('a', 'v', 'c', '1'),
         fps,
-        frame.size()
+        record.frameSize
     );
 
-    if (!writer.isOpened())
-        throw std::runtime_error("Cannot open video");
+    if (!record.writer.isOpened()) {
+        record.writer.open(
+            path,
+            cv::VideoWriter::fourcc('m', 'p', '4', 'v'),
+            fps,
+            record.frameSize
+        );
+    }
 
-    m_videoWriters.emplace(id, std::move(writer));
-    addFrameToRecord(id, frame);
+    if (!record.writer.isOpened()) {
+        std::cerr << "ClipRecorder: cannot open writer for " << path << std::endl;
+        return false;
+    }
+
+    auto [it, inserted] = m_records.emplace(id, std::move(record));
+    it->second.writer.write(frame);
+    return true;
 }
 
 void ClipRecorder::addFrameToRecord(
     const std::string& id,
     const cv::Mat& frame)
 {
-    m_videoWriters.at(id).write(frame);
+    auto it = m_records.find(id);
+    if (it == m_records.end())
+        return;
+
+    // A writer opened for one resolution silently produces a corrupt clip if
+    // fed anything else, so drop mismatched frames instead.
+    if (frame.empty() || frame.size() != it->second.frameSize)
+        return;
+
+    it->second.writer.write(frame);
 }
 
 void ClipRecorder::stopRecording(const std::string& id)
 {
-    auto& writer = m_videoWriters.at(id);
-    writer.release();
+    auto it = m_records.find(id);
+    if (it == m_records.end())
+        return;
 
-    m_videoWriters.erase(id);
+    it->second.writer.release();
+    m_records.erase(it);
 }
 
 bool ClipRecorder::checkRecord(const std::string& id) const
 {
-    return (m_videoWriters.find(id) != m_videoWriters.end());
+    return m_records.find(id) != m_records.end();
 }

@@ -1,8 +1,7 @@
 #pragma once
-#include <fstream>
-#include <iostream>
+#include <algorithm>
 #include <opencv2/opencv.hpp>
-#include "../detection/yolo_model.h"
+#include "../detection/detection.h"
 
 namespace ImagePainter
 {

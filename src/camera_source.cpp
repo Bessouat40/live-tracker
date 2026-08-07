@@ -1,42 +1,43 @@
 #include "camera_source.h"
 
-CameraSource::CameraSource()
-{
-    m_capture.open(0);
+#include <iostream>
 
-    if (!m_capture.isOpened())
-        throw std::runtime_error("Cannot open camera source");
-}
+CameraSource::CameraSource() = default;
 
 CameraSource::CameraSource(int source)
 {
-    m_capture.open(source);
-
-    if (!m_capture.isOpened())
-        throw std::runtime_error("Cannot open camera source");
+    setSource(source);
 }
 
 CameraSource::CameraSource(const std::string& source)
 {
-    m_capture.open(source);
-
-    if (!m_capture.isOpened())
-        throw std::runtime_error("Cannot open video source");
+    setSource(source);
 }
 
 cv::Mat CameraSource::getLatestFrame()
 {
+    if (!m_capture.isOpened())
+        return {};
+
     cv::Mat frame;
     m_capture >> frame;
     return frame;
 }
 
-void CameraSource::setSource(int source)
+bool CameraSource::setSource(int source)
 {
-    m_capture.open(source);
+    if (!m_capture.open(source)) {
+        std::cerr << "CameraSource: cannot open camera index " << source << std::endl;
+        return false;
+    }
+    return true;
 }
 
-void CameraSource::setSource(const std::string& source)
+bool CameraSource::setSource(const std::string& source)
 {
-    m_capture.open(source);
+    if (!m_capture.open(source)) {
+        std::cerr << "CameraSource: cannot open video source " << source << std::endl;
+        return false;
+    }
+    return true;
 }
