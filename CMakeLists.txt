@@ -30,8 +30,13 @@ qt_add_qml_module(applive-tracker
         qml/CameraViewer.qml
         qml/TimelineView.qml
     SOURCES
-        src/camera_streaming.h
-        src/camera_streaming.cpp
+        src/camera_source.h
+        src/camera_source.cpp
+        src/camera_manager.h
+        src/utils/clip_recorder.cpp
+        src/utils/clip_recorder.h
+        src/camera_manager.cpp
+        src/detection/detection.h
         src/detection/yolo_model.h
         src/detection/yolo_model.cpp
         src/position/gps.cpp

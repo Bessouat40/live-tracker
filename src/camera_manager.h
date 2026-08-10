@@ -13,19 +13,21 @@
 #include "utils/image_painter.h"
 #include "position/gps.h"
 #include "detection/tracker.h"
+#include "utils/clip_recorder.h"
+#include "camera_source.h"
 
-class CameraStreaming : public QQuickPaintedItem
+class CameraManager : public QQuickPaintedItem
 {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(bool isRunning READ isRunning NOTIFY isRunningChanged)
 
 public:
-    explicit CameraStreaming(QQuickItem *parent = nullptr);
-    ~CameraStreaming();
+    explicit CameraManager(QQuickItem *parent = nullptr);
+    ~CameraManager();
     
-    Q_INVOKABLE void setSource(const qint32 &source) { m_source = source; m_sourcePath.clear(); }
-    Q_INVOKABLE void setSourcePath(const QString &path) { m_sourcePath = path; }
+    Q_INVOKABLE void setSource(const qint32 &source) { m_cameraSource.setSource(source); }
+    Q_INVOKABLE void setSourcePath(const QString &path) { m_cameraSource.setSource(path.toStdString()); }
     Q_INVOKABLE void startStream();
     Q_INVOKABLE void stopStream();
 
@@ -40,41 +42,44 @@ signals:
     void newFrameReady();
 
 private:
-    qint32 m_source = 0;
-    QString m_sourcePath;
+    // CPP objects. Declaration order drives construction order, so it must
+    // match the constructor's initialiser list.
+    YoloModel m_yoloModel;
+    Gps m_gps;
+    Tracker m_tracker;
+    ClipRecorder m_clipRecorder;
+    CameraSource m_cameraSource;
+
     QImage m_streamedImage;
-    YoloModel yoloModel;
-    Gps gps;
+    std::atomic<bool> m_running = false;
 
     std::thread m_captureThread;
     std::thread m_inferenceThread;
 
+    struct ClipRequest {
+        double lat;
+        double lon;
+        std::string label;
+        float confidence;
+        int framesNumber;
+        std::string id;
+        std::string path;
+    };
+
+    std::vector<ClipRequest> m_clipRequests;
     std::mutex m_rawFrameMutex;
+    std::mutex m_clipRequestMutex;
     cv::Mat m_latestRawFrame;
 
     std::mutex m_detectionsMutex;
     std::vector<Detection> m_latestDetections;
-    
+
     mutable std::mutex m_imageMutex;
-    std::atomic<bool> m_running = false;
-    std::thread m_videoThread;
 
-    Tracker tracker;
-
-    struct ClipRequest { double lat; double lon; std::string label; float confidence; };
-    struct ActiveClip  { double lat; double lon; std::string label; float confidence; QString url; };
-
-    std::deque<ClipRequest> m_clipRequests;
-    std::mutex m_clipRequestMutex;
-    cv::VideoWriter m_clipWriter;
-    int m_clipFramesLeft = 0;
-    ActiveClip m_currentClip;
     double m_captureFps = 30.0;
     static constexpr double CLIP_SECONDS = 3.0;
     static constexpr std::size_t MAX_PENDING_CLIPS = 30;
 
-    void handleClipRecording(const cv::Mat &annotatedFrame);
-    void startClip(const ClipRequest &req, const cv::Size &frameSize);
-
     std::vector<Detection> detectObjects(cv::Mat &frame);
+    void handleClipRecording(const cv::Mat &annotatedFrame);
 };

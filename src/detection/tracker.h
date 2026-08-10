@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <opencv2/core.hpp>
-#include "yolo_model.h"
+#include "detection.h"
 
 struct Track {
     int id;

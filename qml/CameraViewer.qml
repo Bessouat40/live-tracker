@@ -14,7 +14,7 @@ Rectangle {
     Layout.alignment: Qt.AlignLeft
     width: parent.width
 
-    CameraStreaming {
+    CameraManager {
         id: camera
         anchors.fill: parent
         anchors.margins: 1

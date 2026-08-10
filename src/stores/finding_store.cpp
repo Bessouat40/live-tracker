@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <QFile>
 #include <QUrl>
+#include <QDir>
+#include <QStandardPaths>
 
 FindingStore::FindingStore(QObject *parent)
     : QAbstractListModel(parent)
@@ -16,8 +18,14 @@ FindingStore::FindingStore(QObject *parent)
 
 void FindingStore::initDb()
 {
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dir.isEmpty() || !QDir().mkpath(dir)) {
+        qWarning() << "FindingStore: cannot create data directory:" << dir;
+        return;
+    }
+
     m_db = QSqlDatabase::addDatabase("QSQLITE", "findings");
-    m_db.setDatabaseName("findings.db");
+    m_db.setDatabaseName(QDir(dir).filePath("findings.db"));
     if (!m_db.open()) {
         qWarning() << "FindingStore: cannot open findings.db:" << m_db.lastError().text();
         return;
@@ -116,10 +124,11 @@ void FindingStore::addFinding(double latitude, double longitude,
         q.addBindValue(f.label);
         q.addBindValue(f.confidence);
         q.addBindValue(f.videoPath);
-        if (q.exec())
-            f.id = q.lastInsertId().toLongLong();
-        else
+        if (!q.exec()) {
             qWarning() << "FindingStore: insert failed:" << q.lastError().text();
+            return;
+        }
+        f.id = q.lastInsertId().toLongLong();
     }
 
     beginInsertRows(QModelIndex(), static_cast<int>(m_items.size()), static_cast<int>(m_items.size()));
@@ -155,8 +164,10 @@ void FindingStore::remove(int index)
         QSqlQuery q(m_db);
         q.prepare("DELETE FROM findings WHERE id = ?");
         q.addBindValue(id);
-        if (!q.exec())
+        if (!q.exec()) {
             qWarning() << "FindingStore: delete failed:" << q.lastError().text();
+            return;
+        }
     }
 
     beginRemoveRows(QModelIndex(), index, index);
@@ -182,14 +193,23 @@ bool FindingStore::exportClip(const QString &sourceUrl, const QUrl &destination)
         return false;
     }
 
-    // QFile::copy won't overwrite; clear any existing destination first.
-    if (QFile::exists(dstPath) && !QFile::remove(dstPath)) {
-        qWarning() << "FindingStore: exportClip cannot overwrite:" << dstPath;
+    const QString tmpPath = dstPath + QStringLiteral(".part");
+    QFile::remove(tmpPath);
+
+    if (!QFile::copy(srcPath, tmpPath)) {
+        qWarning() << "FindingStore: exportClip copy failed:" << srcPath << "->" << dstPath;
         return false;
     }
 
-    if (!QFile::copy(srcPath, dstPath)) {
-        qWarning() << "FindingStore: exportClip copy failed:" << srcPath << "->" << dstPath;
+    if (QFile::exists(dstPath) && !QFile::remove(dstPath)) {
+        qWarning() << "FindingStore: exportClip cannot overwrite:" << dstPath;
+        QFile::remove(tmpPath);
+        return false;
+    }
+
+    if (!QFile::rename(tmpPath, dstPath)) {
+        qWarning() << "FindingStore: exportClip cannot finalise:" << dstPath;
+        QFile::remove(tmpPath);
         return false;
     }
     return true;

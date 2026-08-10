@@ -61,9 +61,36 @@ Popup {
             mi = parseInt(tp[1], 10)
         }
 
+        if (isNaN(y) || isNaN(mo) || isNaN(d) || isNaN(h) || isNaN(mi))
+            return 0
+        if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59)
+            return 0
+
         let dt = new Date(y, mo - 1, d, h, mi, isEnd ? 59 : 0, isEnd ? 999 : 0)
         let t = dt.getTime()
-        return isNaN(t) ? 0 : t
+        if (isNaN(t))
+            return 0
+        // Date silently rolls over out-of-range days (2026-02-31 -> March),
+        // so reject anything the constructor had to normalise.
+        if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d)
+            return 0
+        return t
+    }
+
+    // Empty when the current range is usable, otherwise the reason why not.
+    function rangeError() {
+        if (fromDate.text.indexOf(" ") === -1 && fromDate.text.length >= 10
+            && parseDT(fromDate.text, fromTime.text, false) === 0)
+            return qsTr("Invalid \"From\" date")
+        if (toDate.text.indexOf(" ") === -1 && toDate.text.length >= 10
+            && parseDT(toDate.text, toTime.text, true) === 0)
+            return qsTr("Invalid \"To\" date")
+
+        let f = parseDT(fromDate.text, fromTime.text, false)
+        let t = parseDT(toDate.text, toTime.text, true)
+        if (f > 0 && t > 0 && f > t)
+            return qsTr("\"From\" is after \"To\"")
+        return ""
     }
 
     onOpened: {
@@ -347,10 +374,14 @@ Popup {
         }
 
         Label {
-            text: qsTr("Date YYYY-MM-DD · time HH:MM · leave empty for no limit")
+            id: rangeHint
+            readonly property string error: positionFilters.rangeError()
+            text: error !== ""
+                ? error
+                : qsTr("Date YYYY-MM-DD · time HH:MM · leave empty for no limit")
             font.pixelSize: 10
             font.italic: true
-            color: Theme.textFaint
+            color: error !== "" ? Theme.danger : Theme.textFaint
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
@@ -389,6 +420,7 @@ Popup {
             ThemedButton {
                 text: qsTr("Apply")
                 Layout.fillWidth: true
+                enabled: rangeHint.error === ""
                 bgColor: Theme.accentStrong
                 bgHover: Theme.accent
                 contentColor: Theme.textOnAccent

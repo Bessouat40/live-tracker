@@ -8,7 +8,9 @@ import QtPositioning
 Map {
     id: map
     plugin: mapPlugin
-    center: QtPositioning.coordinate(59.91, 10.75)
+    // Matches the GPS source's area so the first findings are on screen.
+    // Overridden by centerOn() as soon as a finding exists.
+    center: QtPositioning.coordinate(44.8377, -0.5791)
     zoomLevel: 14
     property geoCoordinate startCentroid
 
