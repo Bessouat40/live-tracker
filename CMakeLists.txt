@@ -38,13 +38,13 @@ qt_add_qml_module(applive-tracker
         qml/TimelineComponents/Selection.qml
         qml/TimelineComponents/TimelineFresco.qml
         qml/TimelineComponents/TimelineView.qml
-        qml/new_components/Clock.qml
-        qml/new_components/DetectionsList.qml
-        qml/new_components/FilterBar.qml
-        qml/new_components/FilterState.qml
-        qml/new_components/LiveView.qml
-        qml/new_components/PanelSection.qml
-        qml/new_components/TabStrip.qml
+        qml/LiveComponents/Clock.qml
+        qml/LiveComponents/DetectionsList.qml
+        qml/LiveComponents/FilterBar.qml
+        qml/LiveComponents/FilterState.qml
+        qml/LiveComponents/LiveView.qml
+        qml/LiveComponents/PanelSection.qml
+        qml/LiveComponents/TabStrip.qml
         qml/CameraViewer.qml
     SOURCES
         src/camera_source.h
