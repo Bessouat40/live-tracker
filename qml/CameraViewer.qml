@@ -20,13 +20,14 @@ Rectangle {
         anchors.margins: 1
 
         Component.onCompleted: {
-            camera.setSource(0)
+            // camera.setSource(0)
             // camera.setSourcePath("tcp://xxx:8554")
+            camera.setSourcePath("/home/uiv22989/live-tracker/chat.mp4")
             camera.startStream()
         }
 
         onPositionMocked: function(latitude, longitude, label, clipPath, confidence) {
-            positionList.addFinding(latitude, longitude, label, clipPath, confidence)
+            FindingStore.addFinding(latitude, longitude, label, clipPath, confidence)
         }
     }
 

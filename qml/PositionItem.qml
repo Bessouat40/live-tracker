@@ -22,7 +22,7 @@ Rectangle {
     Layout.alignment: Qt.AlignLeft
     width: parent.width
 
-    readonly property bool isMatch: mainWindow.matchesFilters(positionItem.label, positionItem.confidence, positionItem.timestamp)
+    readonly property bool isMatch: FilterState.matches(positionItem.label, positionItem.confidence, positionItem.timestamp)
     visible: isMatch
     height: isMatch ? 84 : 0
 
@@ -72,7 +72,7 @@ Rectangle {
                 spacing: Theme.spacingSm
 
                 Label {
-                    text: mainWindow.timeAgo(positionItem.timestamp)
+                    text: Clock.timeAgo(positionItem.timestamp)
                     font.pixelSize: 10
                     color: Theme.textFaint
                 }

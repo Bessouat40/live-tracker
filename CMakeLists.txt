@@ -14,7 +14,13 @@ qt_add_executable(applive-tracker
     main.cpp
 )
 
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(
+    qml/new_components/Clock.qml
+    qml/Theme.qml
+    qml/new_components/FilterState.qml
+    qml/new_components/Selection.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
 
 qt_add_qml_module(applive-tracker
     URI live-tracker
@@ -27,8 +33,19 @@ qt_add_qml_module(applive-tracker
         qml/VideoPopup.qml
         qml/PositionItem.qml
         qml/MapDisplay.qml
+        qml/TimelineComponents/FrescoDot.qml
+        qml/TimelineComponents/Panel.qml
+        qml/TimelineComponents/Selection.qml
+        qml/TimelineComponents/TimelineFresco.qml
+        qml/TimelineComponents/TimelineView.qml
+        qml/new_components/Clock.qml
+        qml/new_components/DetectionsList.qml
+        qml/new_components/FilterBar.qml
+        qml/new_components/FilterState.qml
+        qml/new_components/LiveView.qml
+        qml/new_components/PanelSection.qml
+        qml/new_components/TabStrip.qml
         qml/CameraViewer.qml
-        qml/TimelineView.qml
     SOURCES
         src/camera_source.h
         src/camera_source.cpp
