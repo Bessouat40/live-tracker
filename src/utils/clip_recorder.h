@@ -6,10 +6,6 @@
 
 class ClipRecorder {
     public:
-        // Returns false when the clip cannot be started (already recording,
-        // invalid fps/frame, or the writer refuses to open). Never throws:
-        // callers run on the capture thread, where an escaping exception
-        // would terminate the process.
         bool startRecording(
             const std::string& id,
             const std::string& path,

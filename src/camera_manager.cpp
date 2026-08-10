@@ -96,8 +96,6 @@ void CameraManager::captureLoop() {
     while (m_running) {
         cv::Mat frame = m_cameraSource.getLatestFrame();
         if (frame.empty()) {
-            // No source, or the video file ended: back off instead of
-            // spinning a core at 100%.
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
@@ -155,15 +153,11 @@ void CameraManager::handleClipRecording(const cv::Mat& annotatedFrame)
 
     const int totalFrames = std::max(1, static_cast<int>(m_captureFps * CLIP_SECONDS));
 
-    // Clips whose recording ended on this frame. Collected under the lock and
-    // emitted outside of it, so a slot can never re-enter us while we hold it.
     std::vector<ClipRequest> finished;
 
     {
         std::lock_guard<std::mutex> lock(m_clipRequestMutex);
 
-        // Iterate m_clipRequests directly: mutating a copy would drop every
-        // framesNumber increment and its iterators are not valid here anyway.
         for (auto it = m_clipRequests.begin(); it != m_clipRequests.end(); ) {
             ClipRequest &request = *it;
 
@@ -171,7 +165,6 @@ void CameraManager::handleClipRecording(const cv::Mat& annotatedFrame)
                 const std::string path = "captures/" + request.id + ".mp4";
 
                 if (!m_clipRecorder.startRecording(request.id, path, annotatedFrame, m_captureFps)) {
-                    // No writer: still report the finding, just without a clip.
                     request.path.clear();
                     finished.push_back(request);
                     it = m_clipRequests.erase(it);

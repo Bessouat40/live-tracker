@@ -18,8 +18,6 @@ FindingStore::FindingStore(QObject *parent)
 
 void FindingStore::initDb()
 {
-    // A relative name resolves against the working directory, which is not
-    // stable once the app is bundled: keep the database in the app data dir.
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     if (dir.isEmpty() || !QDir().mkpath(dir)) {
         qWarning() << "FindingStore: cannot create data directory:" << dir;
@@ -126,8 +124,6 @@ void FindingStore::addFinding(double latitude, double longitude,
         q.addBindValue(f.label);
         q.addBindValue(f.confidence);
         q.addBindValue(f.videoPath);
-        // Bail out on failure: showing a row that SQLite never stored makes it
-        // vanish on the next launch.
         if (!q.exec()) {
             qWarning() << "FindingStore: insert failed:" << q.lastError().text();
             return;
@@ -168,8 +164,6 @@ void FindingStore::remove(int index)
         QSqlQuery q(m_db);
         q.prepare("DELETE FROM findings WHERE id = ?");
         q.addBindValue(id);
-        // Same reasoning as addFinding: dropping the row from the view while
-        // SQLite keeps it makes the finding reappear on the next launch.
         if (!q.exec()) {
             qWarning() << "FindingStore: delete failed:" << q.lastError().text();
             return;
@@ -199,8 +193,6 @@ bool FindingStore::exportClip(const QString &sourceUrl, const QUrl &destination)
         return false;
     }
 
-    // QFile::copy won't overwrite. Copy to a sibling temporary first so a
-    // failed export cannot destroy an existing destination file.
     const QString tmpPath = dstPath + QStringLiteral(".part");
     QFile::remove(tmpPath);
 

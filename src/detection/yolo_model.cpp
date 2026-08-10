@@ -20,7 +20,6 @@ YoloModel::YoloModel(
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
     net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
 
-    // Without labels every detection would index an empty vector.
     if (classNames.empty())
         throw std::runtime_error("YoloModel: no class names loaded from " + classNamesPath);
 }
@@ -124,7 +123,6 @@ std::vector<Detection> YoloModel::getOVDetections(const cv::Mat &image) {
         );
         
         if(maxClassScore > 0.5) {
-            // The model's class count and labels.txt can disagree.
             if (classId < 0 || static_cast<std::size_t>(classId) >= classNames.size())
                 continue;
 
