@@ -19,7 +19,8 @@ class ClipRecorder {
     private:
         struct Record {
             cv::VideoWriter writer;
-            cv::Size frameSize; // writers reject frames of any other size
+            // writers reject frames of any other size
+            cv::Size frameSize;
         };
 
         std::unordered_map<std::string, Record> m_records;
