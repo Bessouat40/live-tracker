@@ -15,6 +15,7 @@ Item {
     property string emptyText: ""
 
     signal eventActivated(var finding)
+    signal selectionRequested(int index)
 
     // ── Lanes and colours ───────────────────────────────────────────────
     readonly property var lanes: {
@@ -171,6 +172,8 @@ Item {
             y: fresco.yOf(modelData.label) - height / 2
 
             onActivated: fresco.eventActivated(dot.modelData)
+            onSelectionRequested: fresco.selectFinding(index, true)
+            
         }
     }
 

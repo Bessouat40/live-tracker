@@ -12,14 +12,21 @@ Item {
 
     signal clipRequested(string path, string label)
 
+    function selectFinding(index, recenter) {
+        if (index < 0 || index >= FindingStore.count)
+            return
+        Selection.index = index
+        detections.positionViewAt(index)
+        if (recenter) {
+            let item = FindingStore.get(index)
+            map.centerOn(item.latitude, item.longitude)
+        }
+    }
+
     // Findings passing the filters AND inside the drawn zone, sorted by time.
     readonly property var events: {
         // Read every dependency so the binding re-evaluates on change: the
         // loop below may not run, and QML only captures what it actually reads.
-        let deps = [FilterState.label, FilterState.minConfidence,
-                    FilterState.fromMs, FilterState.toMs, FindingStore.count,
-                    tlMap.hasZone, tlMap.zMinLat, tlMap.zMaxLat,
-                    tlMap.zMinLon, tlMap.zMaxLon]
         let arr = []
         for (let i = 0; i < FindingStore.count; i++) {
             let it = FindingStore.get(i)
@@ -151,6 +158,8 @@ Item {
                     emptyText: tlMap.hasZone
                         ? qsTr("No detections in this zone for the current filters.")
                         : qsTr("No detections match the current filters.")
+                        
+                    onSelectionRequested: function (index) { root.selectFinding(index, true) }
 
                     onEventActivated: function (finding) {
                         Selection.index = finding.index

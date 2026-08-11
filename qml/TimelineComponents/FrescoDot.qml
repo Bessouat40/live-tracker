@@ -11,6 +11,7 @@ Rectangle {
     property color laneColor: Theme.text
 
     signal activated()
+    signal selectionRequested(int index)
 
     readonly property bool selected: finding !== null && Selection.index === finding.index
     readonly property bool hasClip: finding !== null && !!finding.videoPath
@@ -18,7 +19,7 @@ Rectangle {
     width: selected ? 14 : 10
     height: width
     radius: width / 2
-    color: laneColor
+    color: selected ? Theme.active : laneColor
     border.color: selected ? Theme.text : Theme.background
     border.width: selected ? 2 : 1
     z: selected ? 10 : 1
@@ -41,7 +42,10 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: dot.activated()
+        onClicked: {
+            dot.activated()
+            dot.selectionRequested(dot.finding.index)
+        }
 
         ToolTip {
             id: dotTip
