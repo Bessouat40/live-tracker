@@ -103,11 +103,24 @@ Item {
             }
         }
 
-        CameraViewer {
-            id: cameraViewer
+        ColumnLayout {
             Layout.fillHeight: true
             Layout.preferredWidth: 2 * root.width / 3
             Layout.fillWidth: true
+            spacing: Theme.spacingMd
+
+            CameraSourceBar {
+                Layout.fillWidth: true
+                onSourceRequested: function (kind, url) {
+                    cameraViewer.setSource(kind, url)
+                }
+            }
+
+            CameraViewer {
+                id: cameraViewer
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+            }
         }
     }
 }

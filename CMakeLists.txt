@@ -41,6 +41,7 @@ qt_add_qml_module(applive-tracker
         qml/LiveComponents/DetectionsList.qml
         qml/LiveComponents/PositionItem.qml
         qml/LiveComponents/FilterBar.qml
+        qml/LiveComponents/CameraSourceBar.qml
         qml/LiveComponents/LiveView.qml
         qml/LiveComponents/PanelSection.qml
         qml/LiveComponents/TabStrip.qml
