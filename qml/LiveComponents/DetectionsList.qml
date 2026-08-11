@@ -13,6 +13,7 @@ Item {
 
     signal selectionRequested(int index)
     signal removeRequested(int index)
+    signal findingClicked(int index)
 
     function positionViewAt(index) {
         list.positionViewAtIndex(index, ListView.Contain)
@@ -37,6 +38,7 @@ Item {
                 // onClicked: root.selectionRequested(index)
 
                 onRemoved: root.removeRequested(index)
+                onFindingClicked: root.findingClicked(index)
             }
         }
     }

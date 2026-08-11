@@ -10,15 +10,16 @@ find_package(OpenVINO REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-qt_add_executable(applive-tracker
+qt_add_executable(
+    applive-tracker
     main.cpp
 )
 
 set_source_files_properties(
-    qml/new_components/Clock.qml
-    qml/Theme.qml
-    qml/new_components/FilterState.qml
-    qml/new_components/Selection.qml
+    qml/Singletons/Theme.qml
+    qml/Singletons/Clock.qml
+    qml/Singletons/FilterState.qml
+    qml/Singletons/Selection.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
 
@@ -27,25 +28,25 @@ qt_add_qml_module(applive-tracker
     VERSION 1.0
     QML_FILES
         Main.qml
-        qml/Theme.qml
-        qml/ThemedButton.qml
-        qml/Filters.qml
-        qml/VideoPopup.qml
-        qml/PositionItem.qml
-        qml/MapDisplay.qml
+        qml/SharedComponents/ThemedButton.qml
+        qml/SharedComponents/Filters.qml
+        qml/SharedComponents/VideoPopup.qml
+        qml/SharedComponents/MapDisplay.qml
         qml/TimelineComponents/FrescoDot.qml
         qml/TimelineComponents/Panel.qml
-        qml/TimelineComponents/Selection.qml
         qml/TimelineComponents/TimelineFresco.qml
         qml/TimelineComponents/TimelineView.qml
-        qml/LiveComponents/Clock.qml
         qml/LiveComponents/DetectionsList.qml
+        qml/LiveComponents/PositionItem.qml
         qml/LiveComponents/FilterBar.qml
-        qml/LiveComponents/FilterState.qml
         qml/LiveComponents/LiveView.qml
         qml/LiveComponents/PanelSection.qml
         qml/LiveComponents/TabStrip.qml
-        qml/CameraViewer.qml
+        qml/LiveComponents/CameraViewer.qml
+        qml/Singletons/Clock.qml
+        qml/Singletons/Selection.qml
+        qml/Singletons/FilterState.qml
+        qml/Singletons/Theme.qml
     SOURCES
         src/camera_source.h
         src/camera_source.cpp

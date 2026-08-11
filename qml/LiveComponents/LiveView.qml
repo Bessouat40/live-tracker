@@ -91,6 +91,7 @@ Item {
                         FindingStore.remove(index)
                         Selection.clear()
                     }
+                    onFindingClicked: function (index) { root.selectFinding(index, false) }
                     // onClipRequested: function (path, label) { root.clipRequested(path, label) }
                 }
             }
