@@ -9,6 +9,8 @@ Rectangle {
 
     property var finding: null
     property color laneColor: Theme.text
+    property bool relativeTime: false
+    property string timeText: ""
 
     signal activated()
     signal selectionRequested(int index)
@@ -52,7 +54,8 @@ Rectangle {
             visible: dotMouse.containsMouse
             delay: 100
             text: "<b>" + dot.finding.label + "</b><br>"
-                + Qt.formatDateTime(new Date(dot.finding.ts), "dd MMM HH:mm:ss")
+                + (dot.timeText !== "" ? dot.timeText
+                                      : Qt.formatDateTime(new Date(dot.finding.ts), "dd MMM HH:mm:ss"))
                 + (dot.finding.confidence > 0
                     ? "<br>Conf: " + Math.round(dot.finding.confidence * 100) + "%" : "")
                 + (dot.hasClip ? "<br>▶ " + qsTr("click to play clip")

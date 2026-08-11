@@ -16,16 +16,7 @@ Item {
 
     signal clipRequested(string path, string label)
 
-    function selectFinding(index, recenter) {
-        if (index < 0 || index >= FindingStore.count)
-            return
-        Selection.index = index
-        detections.positionViewAt(index)
-        if (recenter) {
-            let item = FindingStore.get(index)
-            map.centerOn(item.latitude, item.longitude)
-        }
-    }
+    signal selectFinding(int index)
 
     Connections {
         target: FindingStore
@@ -86,7 +77,6 @@ Item {
                 DetectionsList {
                     id: detections
                     anchors.fill: parent
-                    onSelectionRequested: function (index) { root.selectFinding(index, true) }
                     onRemoveRequested: function (index) {
                         FindingStore.remove(index)
                         Selection.clear()

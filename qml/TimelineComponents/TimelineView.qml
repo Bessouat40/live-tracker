@@ -12,16 +12,7 @@ Item {
 
     signal clipRequested(string path, string label)
 
-    function selectFinding(index, recenter) {
-        if (index < 0 || index >= FindingStore.count)
-            return
-        Selection.index = index
-        detections.positionViewAt(index)
-        if (recenter) {
-            let item = FindingStore.get(index)
-            map.centerOn(item.latitude, item.longitude)
-        }
-    }
+    signal selectFinding(int index)
 
     // Findings passing the filters AND inside the drawn zone, sorted by time.
     readonly property var events: {
@@ -158,8 +149,8 @@ Item {
                     emptyText: tlMap.hasZone
                         ? qsTr("No detections in this zone for the current filters.")
                         : qsTr("No detections match the current filters.")
-                        
-                    onSelectionRequested: function (index) { root.selectFinding(index, true) }
+
+                    onSelectionRequested: function (index) { timelineView.selectFinding(index, true) }
 
                     onEventActivated: function (finding) {
                         Selection.index = finding.index

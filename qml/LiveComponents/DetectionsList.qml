@@ -11,7 +11,6 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    signal selectionRequested(int index)
     signal removeRequested(int index)
     signal findingClicked(int index)
 
@@ -32,10 +31,6 @@ Item {
 
             delegate: PositionItem {
                 width: list.width
-
-                // Wire these up if PositionItem exposes them:
-                // selected: index === Selection.index
-                // onClicked: root.selectionRequested(index)
 
                 onRemoved: root.removeRequested(index)
                 onFindingClicked: root.findingClicked(index)

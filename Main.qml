@@ -11,6 +11,17 @@ ApplicationWindow {
     title: qsTr("live-tracker")
     color: Theme.backgroundDeep
 
+    function selectFinding(index, recenter) {
+        if (index < 0 || index >= FindingStore.count)
+            return
+        Selection.index = index
+        detections.positionViewAt(index)
+        if (recenter) {
+            let item = FindingStore.get(index)
+            map.centerOn(item.latitude, item.longitude)
+        }
+    }
+
     // Single instance, opened on request by either tab.
     VideoPopup {
         id: videoPopup
@@ -23,7 +34,7 @@ ApplicationWindow {
         TabStrip {
             id: tabStrip
             Layout.fillWidth: true
-            titles: [qsTr("Live"), qsTr("Timeline")]
+            titles: [qsTr("Live"), qsTr("Timeline"), qsTr("Video Analysis")]
         }
 
         StackLayout {
@@ -35,11 +46,15 @@ ApplicationWindow {
                 onClipRequested: function (path, label) {
                     videoPopup.openWith(path, label)
                 }
+                onSelectFinding: function (index) { mainWindow.selectFinding(index, true) }
             }
             TimelineView {
                 onClipRequested: function (path, label) {
                     videoPopup.openWith(path, label)
                 }
+                onSelectFinding: function (index) { mainWindow.selectFinding(index, true) }
+            }
+            VideoAnalysisView {
             }
         }
     }
