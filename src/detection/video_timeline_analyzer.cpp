@@ -1,5 +1,4 @@
 #include "video_timeline_analyzer.h"
-#include "tracker.h"
 
 #include <QMetaObject>
 
@@ -7,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -18,6 +18,9 @@ VideoTimelineAnalyzer::VideoTimelineAnalyzer(QObject *parent)
 
 VideoTimelineAnalyzer::~VideoTimelineAnalyzer()
 {
+    // Without this the destructor would block until a full analysis finishes,
+    // freezing application shutdown for minutes on a long video.
+    m_cancel.store(true);
     if (m_worker.joinable())
         m_worker.join();
 }
@@ -85,6 +88,16 @@ void VideoTimelineAnalyzer::clear()
     emit resultsChanged();
 }
 
+void VideoTimelineAnalyzer::cancel()
+{
+    if (!m_analyzing.load())
+        return;
+
+    // The worker checks this flag once per frame and stops at the next one,
+    // publishing whatever it has found so far.
+    m_cancel.store(true);
+}
+
 void VideoTimelineAnalyzer::analyze(const QUrl &videoUrl)
 {
     if (m_analyzing.load())
@@ -111,6 +124,7 @@ void VideoTimelineAnalyzer::analyze(const QUrl &videoUrl)
     m_progress.store(0.0);
     emit progressChanged();
 
+    m_cancel.store(false);
     m_analyzing.store(true);
     emit analyzingChanged();
 
@@ -140,62 +154,99 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
     const double fps = fpsRaw > 0.0 ? fpsRaw : 30.0;
     const double frameCount = cap.get(cv::CAP_PROP_FRAME_COUNT);
     const double duration = (frameCount > 0.0) ? (frameCount / fps) * 1000.0 : 0.0;
-
-    // The tracker associates detections between two *analyzed* frames, so the
-    // sampling rate is also its association budget: the wider the gap, the
-    // further an object moves and the more likely the match fails (and a new
-    // id — i.e. a duplicate event — is born). ANALYSIS_HZ is the knob.
     const int sampleStep = std::max(1, static_cast<int>(std::lround(fps / ANALYSIS_HZ)));
 
-    // Fresh tracker per video: ids must not leak from a previous analysis.
-    Tracker tracker;
-
-    // One entry per track id, not per detection.
-    struct TrackAggregate {
+    // An "episode": a continuous stretch during which a given label keeps
+    // being detected. There is no object identity here — two distinct cars
+    // merge into a single "car" episode. What this does give is a readable
+    // fresco: a parked car produces one event instead of one per sampled
+    // frame, which is the whole point.
+    struct Episode {
         double firstMs = 0.0;
         double lastMs = 0.0;
         std::string label;
         float bestConfidence = 0.0f;
-        int hits = 0;
+        int hits = 0;          // sampled frames this label appeared in
+        int maxConcurrent = 0; // most simultaneous detections in one frame
     };
-    std::unordered_map<int, TrackAggregate> aggregates;
-    std::vector<int> firstSeenOrder; // ids in order of appearance
+
+    std::vector<Episode> episodes;
+    // label -> index, in `episodes`, of the episode currently open for it.
+    std::unordered_map<std::string, std::size_t> openEpisode;
+
+    // Per-frame fold, declared outside the loop and cleared on each sample so
+    // the buckets are not reallocated every time.
+    struct FrameEntry {
+        int count = 0;
+        float bestConfidence = 0.0f;
+    };
+    std::unordered_map<std::string, FrameEntry> perFrame;
 
     cv::Mat frame;
     int frameIndex = 0;
     double lastMs = 0.0;
 
-    while (cap.read(frame)) {
+    while (!m_cancel.load()) {
+        // grab() advances the stream without decoding into a cv::Mat, so the
+        // frames that are never analyzed cost almost nothing. At 2 Hz on
+        // 30 fps footage that is 29 frames out of 30.
+        if ((frameIndex % sampleStep) != 0) {
+            if (!cap.grab())
+                break;
+            ++frameIndex;
+            continue;
+        }
+
+        if (!cap.read(frame))
+            break;
         if (frame.empty()) {
             ++frameIndex;
             continue;
         }
-
-        if ((frameIndex % sampleStep) != 0) {
-            ++frameIndex;
-            continue;
-        }
-
-        std::vector<Detection> detections = m_model.runInference(frame);
-        std::vector<Track> tracks = tracker.update(detections);
 
         double tsMs = cap.get(cv::CAP_PROP_POS_MSEC);
         if (tsMs <= 0.0)
             tsMs = (static_cast<double>(frameIndex) / fps) * 1000.0;
         lastMs = std::max(lastMs, tsMs);
 
-        for (const auto &track : tracks) {
-            auto [it, inserted] = aggregates.try_emplace(track.id);
-            TrackAggregate &agg = it->second;
+        const std::vector<Detection> detections = m_model.runInference(frame);
 
-            if (inserted) {
-                agg.firstMs = tsMs;
-                agg.label = track.label;
-                firstSeenOrder.push_back(track.id);
+        // Collapse the frame by label first: three cars in one frame are one
+        // hit on the "car" lane, not three.
+        perFrame.clear();
+        for (const auto &det : detections) {
+            FrameEntry &entry = perFrame[det.label];
+            ++entry.count;
+            entry.bestConfidence = std::max(entry.bestConfidence, det.confidence);
+        }
+
+        for (const auto &[label, entry] : perFrame) {
+            auto openIt = openEpisode.find(label);
+
+            const bool continues =
+                openIt != openEpisode.end() &&
+                (tsMs - episodes[openIt->second].lastMs) <= MERGE_GAP_MS;
+
+            if (continues) {
+                Episode &ep = episodes[openIt->second];
+                ep.lastMs = tsMs;
+                ep.bestConfidence = std::max(ep.bestConfidence, entry.bestConfidence);
+                ep.maxConcurrent = std::max(ep.maxConcurrent, entry.count);
+                ++ep.hits;
+            } else {
+                Episode ep;
+                ep.firstMs = tsMs;
+                ep.lastMs = tsMs;
+                ep.label = label;
+                ep.bestConfidence = entry.bestConfidence;
+                ep.maxConcurrent = entry.count;
+                ep.hits = 1;
+
+                episodes.push_back(ep);
+                // Overwrites any stale entry: exceeding the gap is precisely
+                // what closes the previous episode for this label.
+                openEpisode[label] = episodes.size() - 1;
             }
-            agg.lastMs = tsMs;
-            agg.bestConfidence = std::max(agg.bestConfidence, track.confidence);
-            ++agg.hits;
         }
 
         if (frameCount > 0.0) {
@@ -207,23 +258,29 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
         ++frameIndex;
     }
 
-    // firstSeenOrder is already chronological — the video is walked forwards.
+    // Episodes are appended in order of first appearance, hence already
+    // chronological — sorted explicitly so the fresco can rely on it.
+    std::sort(episodes.begin(), episodes.end(), [](const Episode &a, const Episode &b) {
+        return a.firstMs < b.firstMs;
+    });
+
     QVariantList localEvents;
-    localEvents.reserve(static_cast<int>(firstSeenOrder.size()));
+    localEvents.reserve(static_cast<int>(episodes.size()));
 
     int serial = 0;
-    for (const int id : firstSeenOrder) {
-        const TrackAggregate &agg = aggregates.at(id);
+    for (const Episode &ep : episodes) {
+        if (ep.hits < MIN_HITS)
+            continue;
 
         QVariantMap event;
         event.insert(QStringLiteral("index"), serial++);
-        event.insert(QStringLiteral("trackId"), id);
-        event.insert(QStringLiteral("ts"), agg.firstMs);            // fresco anchor
-        event.insert(QStringLiteral("tsEnd"), agg.lastMs);
-        event.insert(QStringLiteral("durationMs"), agg.lastMs - agg.firstMs);
-        event.insert(QStringLiteral("hits"), agg.hits);
-        event.insert(QStringLiteral("label"), QString::fromStdString(agg.label));
-        event.insert(QStringLiteral("confidence"), static_cast<double>(agg.bestConfidence));
+        event.insert(QStringLiteral("ts"), ep.firstMs);   // fresco anchor
+        event.insert(QStringLiteral("tsEnd"), ep.lastMs);
+        event.insert(QStringLiteral("durationMs"), ep.lastMs - ep.firstMs);
+        event.insert(QStringLiteral("hits"), ep.hits);
+        event.insert(QStringLiteral("count"), ep.maxConcurrent);
+        event.insert(QStringLiteral("label"), QString::fromStdString(ep.label));
+        event.insert(QStringLiteral("confidence"), static_cast<double>(ep.bestConfidence));
         event.insert(QStringLiteral("latitude"), 0.0);
         event.insert(QStringLiteral("longitude"), 0.0);
         event.insert(QStringLiteral("videoPath"), QString());
@@ -232,6 +289,8 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
 
     const double computedDuration = std::max(duration, lastMs);
 
+    // Partial results are published on cancellation too: a fresco covering
+    // the first half of the video is more useful than an empty one.
     {
         std::lock_guard<std::mutex> lock(m_resultMutex);
         m_events = localEvents;

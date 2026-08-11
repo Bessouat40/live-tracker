@@ -283,7 +283,6 @@ Item {
                             return
 
                         player.position = videoView.clampSeek(finding.ts)
-                        player.play()
                     }
                 }
             }

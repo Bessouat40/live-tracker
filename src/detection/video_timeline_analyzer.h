@@ -35,6 +35,7 @@ public:
     QString errorString() const;
 
     Q_INVOKABLE void analyze(const QUrl &videoUrl);
+    Q_INVOKABLE void cancel();
     Q_INVOKABLE void clear();
 
 signals:
@@ -44,16 +45,24 @@ signals:
     void errorChanged();
 
 private:
-    // Frames analyzed per second of video. This is also the tracker's
-    // association budget: between two analyzed frames an object moves, and
-    // past a certain gap the IoU match fails and a fresh id (i.e. a duplicate
-    // event) is born. There is no real-time constraint on a file, so this can
-    // be raised well above the live pipeline's rate — cost is CPU time only.
-    static constexpr double ANALYSIS_HZ = 15.0;
+    // ── Calibration ─────────────────────────────────────────────────────
+    //
+    // Frames analyzed per second of video. Cost is strictly linear: one hour
+    // of footage at 2 Hz is ~7200 inferences, a few minutes of processing.
+    // Raising this buys temporal precision — short events that fall between
+    // two samples are simply invisible — and nothing else, since this
+    // analyzer identifies objects by label rather than by tracking them.
+    static constexpr double ANALYSIS_HZ = 2.0;
 
-    // A track id reappearing after this much silence is treated as a new
-    // object rather than a continuation, in case the tracker recycles ids.
-    static constexpr double MERGE_GAP_MS = 1500.0;
+    // A label that disappears for longer than this closes its episode; seeing
+    // it again starts a new one. Must be a comfortable multiple of the
+    // sampling interval (500 ms at 2 Hz), otherwise a single missed detection
+    // splits one continuous presence into several events.
+    static constexpr double MERGE_GAP_MS = 3000.0;
+
+    // Episodes seen in fewer sampled frames than this are dropped. A label
+    // that shows up once and never again is almost always a false positive.
+    static constexpr int MIN_HITS = 2;
 
     void setError(const QString &error);
     void processVideo(const QString &path);
@@ -63,6 +72,7 @@ private:
     std::thread m_worker;
 
     std::atomic<bool> m_analyzing = false;
+    std::atomic<bool> m_cancel = false;
     std::atomic<double> m_progress = 0.0;
 
     mutable std::mutex m_resultMutex;
