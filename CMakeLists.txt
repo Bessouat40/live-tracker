@@ -36,6 +36,7 @@ qt_add_qml_module(applive-tracker
         qml/TimelineComponents/Panel.qml
         qml/TimelineComponents/TimelineFresco.qml
         qml/TimelineComponents/TimelineView.qml
+        qml/TimelineComponents/VideoAnalysisView.qml
         qml/LiveComponents/DetectionsList.qml
         qml/LiveComponents/PositionItem.qml
         qml/LiveComponents/FilterBar.qml
@@ -57,6 +58,8 @@ qt_add_qml_module(applive-tracker
         src/detection/detection.h
         src/detection/yolo_model.h
         src/detection/yolo_model.cpp
+        src/detection/video_timeline_analyzer.h
+        src/detection/video_timeline_analyzer.cpp
         src/position/gps.cpp
         src/position/gps.h
         src/utils/image_painter.h
@@ -82,7 +85,12 @@ set_target_properties(applive-tracker PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src ${CMAKE_CURRENT_SOURCE_DIR}/src/stores)
+target_include_directories(applive-tracker PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+    src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/stores
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/detection
+)
 target_link_libraries(applive-tracker
     PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
 )
