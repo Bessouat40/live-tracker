@@ -40,6 +40,11 @@ RowLayout {
 
         // Switching back to the webcam needs no confirmation, apply directly.
         onActivated: if (!root.isCustom) root.apply()
+
+        Component.onCompleted: {
+            currentIndex = 0
+            root.apply()
+        }
     }
 
     TextField {

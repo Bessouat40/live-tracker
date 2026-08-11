@@ -15,10 +15,10 @@ ApplicationWindow {
         if (index < 0 || index >= FindingStore.count)
             return
         Selection.index = index
-        detections.positionViewAt(index)
+        liveView.positionViewAt(index)
         if (recenter) {
             let item = FindingStore.get(index)
-            map.centerOn(item.latitude, item.longitude)
+            liveView.centerOn(item.latitude, item.longitude)
         }
     }
 
@@ -43,6 +43,7 @@ ApplicationWindow {
             currentIndex: tabStrip.currentIndex
 
             LiveView {
+                id: liveView
                 onClipRequested: function (path, label) {
                     videoPopup.openWith(path, label)
                 }

@@ -4,7 +4,8 @@ project(live-tracker VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia Sql)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia Sql Quick
+    QuickControls2)
 find_package(OpenCV REQUIRED)
 find_package(OpenVINO REQUIRED)
 
@@ -95,6 +96,8 @@ target_include_directories(applive-tracker PRIVATE
 )
 target_link_libraries(applive-tracker
     PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
+    Qt6::Quick
+    Qt6::QuickControls2
 )
 
 include(GNUInstallDirs)

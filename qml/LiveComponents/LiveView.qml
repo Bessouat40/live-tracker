@@ -18,6 +18,14 @@ Item {
 
     signal selectFinding(int index)
 
+    function positionViewAt(index) {
+        detections.positionViewAt(index)
+    }
+
+    function centerOn(latitude, longitude) {
+        map.centerOn(latitude, longitude)
+    }
+
     Connections {
         target: FindingStore
         function onCountChanged() {
@@ -81,7 +89,7 @@ Item {
                         FindingStore.remove(index)
                         Selection.clear()
                     }
-                    onFindingClicked: function (index) { root.selectFinding(index, false) }
+                    onFindingClicked: function (index) { root.selectFinding(index) }
                     // onClipRequested: function (path, label) { root.clipRequested(path, label) }
                 }
             }
@@ -112,7 +120,12 @@ Item {
             CameraSourceBar {
                 Layout.fillWidth: true
                 onSourceRequested: function (kind, url) {
-                    cameraViewer.setSource(kind, url)
+                    switch (kind) {
+                        case "url":
+                            cameraViewer.set(url)
+                        case "webcam":
+                            cameraViewer.setSource(0)
+                    }
                 }
             }
 
