@@ -7,6 +7,16 @@ import QtPositioning
 
 Map {
     id: map
+
+    // Emitted when a pin is clicked. The owner decides what selecting means
+    // (the Live view also scrolls its list, the Timeline view does not).
+    signal findingClicked(int index)
+
+    Plugin {
+        id: mapPlugin
+        name: "osm"
+    }
+
     plugin: mapPlugin
     // Matches the GPS source's area so the first findings are on screen.
     // Overridden by centerOn() as soon as a finding exists.
@@ -91,7 +101,7 @@ Map {
     }
 
     MapItemView {
-        model: positionList
+        model: FindingStore
         delegate: MapQuickItem {
             id: pin
             required property int index
@@ -101,10 +111,12 @@ Map {
             required property double confidence
             required property double timestamp
 
+            readonly property bool selected: Selection.index === pin.index
+
             coordinate: QtPositioning.coordinate(latitude, longitude)
             anchorPoint.x: 16
             anchorPoint.y: 32
-            visible: mainWindow.matchesFilters(pin.label, pin.confidence, pin.timestamp)
+            visible: FilterState.matches(pin.label, pin.confidence, pin.timestamp)
 
             sourceItem: Item {
                 width: 32
@@ -117,7 +129,7 @@ Map {
                     width: 24
                     height: 24
                     radius: 12
-                    color: mainWindow.selectedIndex === pin.index ? Theme.active : Theme.accentStrong
+                    color: pin.selected ? Theme.active : Theme.accentStrong
                     border.color: Theme.textOnAccent
                     border.width: 2
 
@@ -136,7 +148,7 @@ Map {
                     y: 16
                     width: 10
                     height: 10
-                    color: mainWindow.selectedIndex === pin.index ? Theme.active : Theme.accentStrong
+                    color: pin.selected ? Theme.active : Theme.accentStrong
                     rotation: 45
                     z: -1
                 }
@@ -147,7 +159,7 @@ Map {
                 anchors.fill: parent
                 hoverEnabled: true
 
-                onClicked: mainWindow.selectFinding(pin.index, false)
+                onClicked: map.findingClicked(pin.index)
 
                 ToolTip {
                     id: pinTip
@@ -157,7 +169,7 @@ Map {
                     text: (pin.label ? "<b>" + pin.label + "</b><br>" : "")
                         + "Lat: " + pin.latitude.toFixed(5) + "<br>Lon: " + pin.longitude.toFixed(5)
                         + (pin.confidence > 0 ? "<br>Conf: " + Math.round(pin.confidence * 100) + "%" : "")
-                        + "<br>" + mainWindow.timeAgo(pin.timestamp)
+                        + "<br>" + Clock.timeAgo(pin.timestamp)
 
                     background: Rectangle {
                         color: Theme.overlay

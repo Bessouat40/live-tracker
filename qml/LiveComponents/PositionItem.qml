@@ -12,23 +12,32 @@ Rectangle {
     required property double confidence
     required property double timestamp
 
-    readonly property bool selected: mainWindow.selectedIndex === positionItem.index
+    readonly property bool selected: Selection.index === positionItem.index
 
     color: selected ? Theme.surfaceHover : Theme.surface
-    border.color: selected ? Theme.accent : Theme.border
+    border.color: selected ? Theme.active : Theme.border
     border.width: 1
     radius: Theme.radiusMd
 
     Layout.alignment: Qt.AlignLeft
     width: parent.width
 
-    readonly property bool isMatch: mainWindow.matchesFilters(positionItem.label, positionItem.confidence, positionItem.timestamp)
+    readonly property bool isMatch: FilterState.matches(positionItem.label, positionItem.confidence, positionItem.timestamp)
     visible: isMatch
     height: isMatch ? 84 : 0
 
     clip: true
 
     signal removed()
+    signal findingClicked(int index)
+
+    MouseArea {
+        id: mouseArea
+        anchors.fill: parent
+        hoverEnabled: true
+
+        onClicked: positionItem.findingClicked(positionItem.index)
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -72,7 +81,7 @@ Rectangle {
                 spacing: Theme.spacingSm
 
                 Label {
-                    text: mainWindow.timeAgo(positionItem.timestamp)
+                    text: Clock.timeAgo(positionItem.timestamp)
                     font.pixelSize: 10
                     color: Theme.textFaint
                 }
@@ -121,7 +130,10 @@ Rectangle {
                 verticalAlignment: Text.AlignVCenter
             }
 
-            onClicked: videoPopup.openWith(positionItem.videoPath, positionItem.label)
+            onClicked: {
+                videoPopup.openWith(positionItem.videoPath, positionItem.label)
+                positionItem.findingClicked(positionItem.index)
+            }
         }
 
         // Focus map
@@ -139,7 +151,7 @@ Rectangle {
             }
 
             contentItem: Image {
-                source: "../icons/eye-solid-full.svg"
+                source: "../../icons/eye-solid-full.svg"
                 sourceSize.width: 16
                 sourceSize.height: 16
                 fillMode: Image.PreserveAspectFit
@@ -148,7 +160,8 @@ Rectangle {
                 opacity: focusButton.hovered ? 1.0 : 0.8
             }
 
-            onClicked: mainWindow.selectFinding(positionItem.index, true)
+            onClicked: positionItem.findingClicked(positionItem.index)
+
         }
 
         // Delete
