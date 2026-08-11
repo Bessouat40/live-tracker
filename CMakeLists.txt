@@ -33,6 +33,7 @@ qt_add_qml_module(applive-tracker
         qml/SharedComponents/VideoPopup.qml
         qml/SharedComponents/MapDisplay.qml
         qml/TimelineComponents/FrescoDot.qml
+        qml/TimelineComponents/FilterCriteria.qml
         qml/TimelineComponents/Panel.qml
         qml/TimelineComponents/TimelineFresco.qml
         qml/TimelineComponents/TimelineView.qml

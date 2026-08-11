@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QString>
 #include <QVariantList>
 #include <QUrl>
 #include <QtQml/qqmlregistration.h>
@@ -48,24 +49,28 @@ private:
     // ── Calibration ─────────────────────────────────────────────────────
     //
     // Frames analyzed per second of video. Cost is strictly linear: one hour
-    // of footage at 2 Hz is ~7200 inferences, a few minutes of processing.
-    // Raising this buys temporal precision — short events that fall between
-    // two samples are simply invisible — and nothing else, since this
-    // analyzer identifies objects by label rather than by tracking them.
+    // of footage at 2 Hz is ~7200 inferences. Raising this buys temporal
+    // precision — events falling between two samples are invisible — and
+    // nothing else, since episodes are keyed by label, not by tracking.
     static constexpr double ANALYSIS_HZ = 2.0;
 
-    // A label that disappears for longer than this closes its episode; seeing
-    // it again starts a new one. Must be a comfortable multiple of the
-    // sampling interval (500 ms at 2 Hz), otherwise a single missed detection
-    // splits one continuous presence into several events.
+    // A label absent for longer than this closes its episode; seeing it again
+    // opens a new one. Must be a comfortable multiple of the sampling
+    // interval (500 ms at 2 Hz), or one missed detection splits a continuous
+    // presence into several events.
     static constexpr double MERGE_GAP_MS = 3000.0;
 
-    // Episodes seen in fewer sampled frames than this are dropped. A label
-    // that shows up once and never again is almost always a false positive.
+    // Episodes seen in fewer sampled frames than this are dropped: a label
+    // appearing once and never again is almost always a false positive.
     static constexpr int MIN_HITS = 2;
+
+    // Width in pixels of the JPEG saved for each episode; height follows the
+    // source aspect ratio.
+    static constexpr int THUMBNAIL_WIDTH = 320;
 
     void setError(const QString &error);
     void processVideo(const QString &path);
+    void purgeThumbnails();
     static QString toLocalPath(const QUrl &videoUrl);
 
     YoloModel m_model;
@@ -74,6 +79,10 @@ private:
     std::atomic<bool> m_analyzing = false;
     std::atomic<bool> m_cancel = false;
     std::atomic<double> m_progress = 0.0;
+
+    // Assigned on the GUI thread before the worker starts, read-only inside
+    // the worker — no lock needed.
+    QString m_thumbnailDir;
 
     mutable std::mutex m_resultMutex;
     QVariantList m_events;

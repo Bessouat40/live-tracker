@@ -1,6 +1,10 @@
 #include "video_timeline_analyzer.h"
 
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 #include <QMetaObject>
+#include <QStandardPaths>
 
 #include <opencv2/opencv.hpp>
 
@@ -23,6 +27,8 @@ VideoTimelineAnalyzer::~VideoTimelineAnalyzer()
     m_cancel.store(true);
     if (m_worker.joinable())
         m_worker.join();
+
+    purgeThumbnails();
 }
 
 double VideoTimelineAnalyzer::durationMs() const
@@ -70,6 +76,18 @@ void VideoTimelineAnalyzer::setError(const QString &error)
     emit errorChanged();
 }
 
+// Thumbnails live in the app's cache directory rather than next to the
+// binary: they are disposable, and writing them relative to the working
+// directory would break as soon as the app is launched from elsewhere.
+void VideoTimelineAnalyzer::purgeThumbnails()
+{
+    if (m_thumbnailDir.isEmpty())
+        return;
+
+    QDir(m_thumbnailDir).removeRecursively();
+    m_thumbnailDir.clear();
+}
+
 void VideoTimelineAnalyzer::clear()
 {
     if (m_analyzing.load())
@@ -81,6 +99,8 @@ void VideoTimelineAnalyzer::clear()
         m_durationMs = 0.0;
         m_error.clear();
     }
+
+    purgeThumbnails();
 
     m_progress.store(0.0);
     emit progressChanged();
@@ -121,6 +141,16 @@ void VideoTimelineAnalyzer::analyze(const QUrl &videoUrl)
     emit errorChanged();
     emit resultsChanged();
 
+    // A timestamped directory per run: the QML Image cache keys on the file
+    // URL, so reusing names across runs would show the previous thumbnails.
+    purgeThumbnails();
+    const QString cacheRoot = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    m_thumbnailDir = QDir(cacheRoot).filePath(
+        QStringLiteral("thumbs/%1-%2")
+            .arg(QFileInfo(path).completeBaseName())
+            .arg(QDateTime::currentMSecsSinceEpoch()));
+    QDir().mkpath(m_thumbnailDir);
+
     m_progress.store(0.0);
     emit progressChanged();
 
@@ -158,9 +188,8 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
 
     // An "episode": a continuous stretch during which a given label keeps
     // being detected. There is no object identity here — two distinct cars
-    // merge into a single "car" episode. What this does give is a readable
-    // fresco: a parked car produces one event instead of one per sampled
-    // frame, which is the whole point.
+    // merge into a single "car" episode. What this buys is a readable fresco:
+    // a parked car yields one event instead of one per sampled frame.
     struct Episode {
         double firstMs = 0.0;
         double lastMs = 0.0;
@@ -168,19 +197,23 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
         float bestConfidence = 0.0f;
         int hits = 0;          // sampled frames this label appeared in
         int maxConcurrent = 0; // most simultaneous detections in one frame
+        cv::Mat thumbnail;     // already downscaled; written to disk at the end
     };
 
     std::vector<Episode> episodes;
     // label -> index, in `episodes`, of the episode currently open for it.
     std::unordered_map<std::string, std::size_t> openEpisode;
 
-    // Per-frame fold, declared outside the loop and cleared on each sample so
-    // the buckets are not reallocated every time.
     struct FrameEntry {
         int count = 0;
         float bestConfidence = 0.0f;
     };
     std::unordered_map<std::string, FrameEntry> perFrame;
+
+    // Downscaled once per new episode. Kept in memory rather than written
+    // immediately, so that episodes later dropped by MIN_HITS never touch
+    // the disk. A few hundred KB per episode at most.
+    cv::Mat scaled;
 
     cv::Mat frame;
     int frameIndex = 0;
@@ -188,7 +221,7 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
 
     while (!m_cancel.load()) {
         // grab() advances the stream without decoding into a cv::Mat, so the
-        // frames that are never analyzed cost almost nothing. At 2 Hz on
+        // frames that are never analyzed cost almost nothing — at 2 Hz on
         // 30 fps footage that is 29 frames out of 30.
         if ((frameIndex % sampleStep) != 0) {
             if (!cap.grab())
@@ -242,9 +275,17 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
                 ep.maxConcurrent = entry.count;
                 ep.hits = 1;
 
+                const double scale = static_cast<double>(THUMBNAIL_WIDTH)
+                                   / std::max(1, frame.cols);
+                if (scale < 1.0)
+                    cv::resize(frame, scaled, cv::Size(), scale, scale, cv::INTER_AREA);
+                else
+                    scaled = frame;
+                ep.thumbnail = scaled.clone();
+
                 episodes.push_back(ep);
                 // Overwrites any stale entry: exceeding the gap is precisely
-                // what closes the previous episode for this label.
+                // what closed the previous episode for this label.
                 openEpisode[label] = episodes.size() - 1;
             }
         }
@@ -264,6 +305,9 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
         return a.firstMs < b.firstMs;
     });
 
+    const std::vector<int> jpegParams = { cv::IMWRITE_JPEG_QUALITY, 80 };
+    const QDir thumbDir(m_thumbnailDir);
+
     QVariantList localEvents;
     localEvents.reserve(static_cast<int>(episodes.size()));
 
@@ -271,6 +315,14 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
     for (const Episode &ep : episodes) {
         if (ep.hits < MIN_HITS)
             continue;
+
+        QString thumbnailUrl;
+        if (!ep.thumbnail.empty() && !m_thumbnailDir.isEmpty()) {
+            const QString file = thumbDir.absoluteFilePath(
+                QStringLiteral("ep_%1.jpg").arg(serial, 4, 10, QLatin1Char('0')));
+            if (cv::imwrite(file.toStdString(), ep.thumbnail, jpegParams))
+                thumbnailUrl = QUrl::fromLocalFile(file).toString();
+        }
 
         QVariantMap event;
         event.insert(QStringLiteral("index"), serial++);
@@ -281,6 +333,7 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
         event.insert(QStringLiteral("count"), ep.maxConcurrent);
         event.insert(QStringLiteral("label"), QString::fromStdString(ep.label));
         event.insert(QStringLiteral("confidence"), static_cast<double>(ep.bestConfidence));
+        event.insert(QStringLiteral("thumbnail"), thumbnailUrl);
         event.insert(QStringLiteral("latitude"), 0.0);
         event.insert(QStringLiteral("longitude"), 0.0);
         event.insert(QStringLiteral("videoPath"), QString());
@@ -290,7 +343,7 @@ void VideoTimelineAnalyzer::processVideo(const QString &path)
     const double computedDuration = std::max(duration, lastMs);
 
     // Partial results are published on cancellation too: a fresco covering
-    // the first half of the video is more useful than an empty one.
+    // the first half of the video beats an empty one.
     {
         std::lock_guard<std::mutex> lock(m_resultMutex);
         m_events = localEvents;

@@ -12,7 +12,7 @@ import QtQuick.Controls
       • absolute (default): timestamps are epoch ms, the scale comes from
         FilterState or from the data span.
       • imposed scale: set timeMin/timeMax (>= 0, max > min) and the fresco
-        uses exactly that window — nothing is padded or overridden. This is
+        uses exactly that window — nothing padded, nothing overridden. This is
         what the video view uses, where ts is an offset from the first frame.
 */
 Item {
@@ -27,8 +27,23 @@ Item {
     // Optional playhead, in the same unit as the events (ignored when < 0).
     property double marker: -1
 
+    // Highlights the event whose `index` matches (ignored when < 0). Matching
+    // on the event's own index rather than its position in `events` keeps the
+    // highlight anchored to the same finding when the list is refiltered.
+    property int selectedIndex: -1
+
     signal eventActivated(var finding)
     signal selectionRequested(int index)
+
+    readonly property var selectedEvent: {
+        if (selectedIndex < 0)
+            return null
+        for (let i = 0; i < events.length; i++) {
+            if (events[i].index === selectedIndex)
+                return events[i]
+        }
+        return null
+    }
 
     // ── Lanes and colours ───────────────────────────────────────────────
     readonly property var lanes: {
@@ -80,8 +95,8 @@ Item {
     readonly property double tMax: bounds[1]
     readonly property double tSpan: Math.max(1, tMax - tMin)
 
-    // Axis-tick formatter. Relative mode adapts to the span so that short
-    // clips do not end up with five ticks all reading "0:00".
+    // Axis-tick formatter. Relative mode adapts to the span so short clips do
+    // not end up with five ticks all reading "0:00".
     function fmtTick(ms) {
         if (useRelativeTime) {
             if (tSpan < 10000)
@@ -210,7 +225,7 @@ Item {
         }
     }
 
-    // Playhead (video mode). Sits under the dots so it never eats their clicks.
+    // Playhead. Sits under the dots so it never eats their clicks.
     Rectangle {
         visible: fresco.marker >= fresco.tMin && fresco.marker <= fresco.tMax
         x: fresco.xOf(fresco.marker)
@@ -219,6 +234,26 @@ Item {
         height: fresco.lanesH
         color: Theme.accent
         opacity: 0.9
+    }
+
+    // Selection ring, drawn before the dots so the dot stays on top.
+    Rectangle {
+        id: selectionRing
+        visible: fresco.selectedEvent !== null
+        width: 24
+        height: 24
+        radius: width / 2
+        color: "transparent"
+        border.color: Theme.text
+        border.width: 2
+        opacity: 0.85
+        x: fresco.selectedEvent
+            ? fresco.xOf(fresco.selectedEvent.ts) - width / 2 : 0
+        y: fresco.selectedEvent
+            ? fresco.yOf(fresco.selectedEvent.label) - height / 2 : 0
+
+        Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+        Behavior on y { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
     }
 
     // Detection dots
@@ -239,7 +274,7 @@ Item {
 
             onActivated: fresco.eventActivated(dot.modelData)
             // The event carries its own index into the source model; the
-            // delegate's own position in the Repeater is not it.
+            // delegate's position in the Repeater is not it.
             onSelectionRequested: fresco.selectionRequested(dot.modelData.index)
         }
     }
