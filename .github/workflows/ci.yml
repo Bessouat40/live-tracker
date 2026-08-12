@@ -20,13 +20,13 @@ jobs:
           sudo apt-get install -y --no-install-recommends libopencv-dev ninja-build
 
       # --- OpenVINO (Intel APT repository) ---
-      # Adjust the version/codename if you bump OpenVINO. ubuntu-24.04 == "ubuntu24".
+      # Adjust the repo codename if you change runner OS. ubuntu-24.04 == "ubuntu24".
       - name: Install OpenVINO
         run: |
-          wget -qO- https://apt.repos.intel.com/openvino/2025/GPG-PUB-KEY-INTEL-OPENVINO-2025 \
-            | sudo gpg --dearmor -o /usr/share/keyrings/intel-openvino.gpg
-          echo "deb [signed-by=/usr/share/keyrings/intel-openvino.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu24 main" \
-            | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | sudo gpg --dearmor -o /usr/share/keyrings/intel-sw-products.gpg
+          echo "deb [signed-by=/usr/share/keyrings/intel-sw-products.gpg] https://apt.repos.intel.com/openvino ubuntu24 main" \
+            | sudo tee /etc/apt/sources.list.d/intel-openvino.list
           sudo apt-get update
           sudo apt-get install -y openvino
           # Expose OpenVINO's CMake config to find_package()
