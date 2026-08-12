@@ -4,7 +4,8 @@ project(live-tracker VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia Sql)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Location Positioning Multimedia Sql Quick
+    QuickControls2)
 find_package(OpenCV REQUIRED)
 find_package(OpenVINO REQUIRED)
 
@@ -33,12 +34,15 @@ qt_add_qml_module(applive-tracker
         qml/SharedComponents/VideoPopup.qml
         qml/SharedComponents/MapDisplay.qml
         qml/TimelineComponents/FrescoDot.qml
+        qml/TimelineComponents/FilterCriteria.qml
         qml/TimelineComponents/Panel.qml
         qml/TimelineComponents/TimelineFresco.qml
         qml/TimelineComponents/TimelineView.qml
+        qml/TimelineComponents/VideoAnalysisView.qml
         qml/LiveComponents/DetectionsList.qml
         qml/LiveComponents/PositionItem.qml
         qml/LiveComponents/FilterBar.qml
+        qml/LiveComponents/CameraSourceBar.qml
         qml/LiveComponents/LiveView.qml
         qml/LiveComponents/PanelSection.qml
         qml/LiveComponents/TabStrip.qml
@@ -57,6 +61,8 @@ qt_add_qml_module(applive-tracker
         src/detection/detection.h
         src/detection/yolo_model.h
         src/detection/yolo_model.cpp
+        src/detection/video_timeline_analyzer.h
+        src/detection/video_timeline_analyzer.cpp
         src/position/gps.cpp
         src/position/gps.h
         src/utils/image_painter.h
@@ -82,9 +88,16 @@ set_target_properties(applive-tracker PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-target_include_directories(applive-tracker PRIVATE ${OpenCV_INCLUDE_DIRS} src ${CMAKE_CURRENT_SOURCE_DIR}/src/stores)
+target_include_directories(applive-tracker PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+    src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/stores
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/detection
+)
 target_link_libraries(applive-tracker
     PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
+    Qt6::Quick
+    Qt6::QuickControls2
 )
 
 include(GNUInstallDirs)

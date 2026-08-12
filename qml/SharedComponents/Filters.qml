@@ -30,6 +30,10 @@ Popup {
     property double currentFrom: 0 // epoch ms, 0 = unbounded
     property double currentTo: 0   // epoch ms, 0 = unbounded
 
+    // Absolute dates make no sense against a media clock: VideoView turns
+    // this off and the popup then reports 0/0 (unbounded) for the range.
+    property bool showTimeRange: true
+
     // Working copies edited inside the popup, committed on Apply.
     property string wLabel: ""
     property real wConfidence: 0
@@ -46,6 +50,8 @@ Popup {
     // Builds an epoch ms from masked date/time fields. Returns 0 when the
     // date is missing/incomplete (unbounded). isEnd fills the day's tail.
     function parseDT(dateStr, timeStr, isEnd) {
+        if (!positionFilters.showTimeRange)
+            return 0
         if (dateStr.indexOf(" ") !== -1 || dateStr.length < 10)
             return 0
         let dp = dateStr.split("-")
@@ -79,6 +85,9 @@ Popup {
 
     // Empty when the current range is usable, otherwise the reason why not.
     function rangeError() {
+        // Hidden fields must never be able to disable Apply.
+        if (!positionFilters.showTimeRange)
+            return ""
         if (fromDate.text.indexOf(" ") === -1 && fromDate.text.length >= 10
             && parseDT(fromDate.text, fromTime.text, false) === 0)
             return qsTr("Invalid \"From\" date")
@@ -346,6 +355,7 @@ Popup {
             font.bold: true
             font.letterSpacing: 1
             color: Theme.textFaint
+            visible: positionFilters.showTimeRange
         }
 
         GridLayout {
@@ -353,6 +363,7 @@ Popup {
             columns: 3
             columnSpacing: Theme.spacingSm
             rowSpacing: Theme.spacingSm
+            visible: positionFilters.showTimeRange
 
             Label {
                 text: qsTr("From")
@@ -384,6 +395,7 @@ Popup {
             color: error !== "" ? Theme.danger : Theme.textFaint
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
+            visible: positionFilters.showTimeRange
         }
 
         Rectangle {

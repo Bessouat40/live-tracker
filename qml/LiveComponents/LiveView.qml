@@ -16,15 +16,14 @@ Item {
 
     signal clipRequested(string path, string label)
 
-    function selectFinding(index, recenter) {
-        if (index < 0 || index >= FindingStore.count)
-            return
-        Selection.index = index
+    signal selectFinding(int index)
+
+    function positionViewAt(index) {
         detections.positionViewAt(index)
-        if (recenter) {
-            let item = FindingStore.get(index)
-            map.centerOn(item.latitude, item.longitude)
-        }
+    }
+
+    function centerOn(latitude, longitude) {
+        map.centerOn(latitude, longitude)
     }
 
     Connections {
@@ -86,12 +85,11 @@ Item {
                 DetectionsList {
                     id: detections
                     anchors.fill: parent
-                    onSelectionRequested: function (index) { root.selectFinding(index, true) }
                     onRemoveRequested: function (index) {
                         FindingStore.remove(index)
                         Selection.clear()
                     }
-                    onFindingClicked: function (index) { root.selectFinding(index, false) }
+                    onFindingClicked: function (index) { root.selectFinding(index) }
                     // onClipRequested: function (path, label) { root.clipRequested(path, label) }
                 }
             }
@@ -113,11 +111,29 @@ Item {
             }
         }
 
-        CameraViewer {
-            id: cameraViewer
+        ColumnLayout {
             Layout.fillHeight: true
             Layout.preferredWidth: 2 * root.width / 3
             Layout.fillWidth: true
+            spacing: Theme.spacingMd
+
+            CameraSourceBar {
+                Layout.fillWidth: true
+                onSourceRequested: function (kind, url) {
+                    switch (kind) {
+                        case "url":
+                            cameraViewer.set(url)
+                        case "webcam":
+                            cameraViewer.setSource(0)
+                    }
+                }
+            }
+
+            CameraViewer {
+                id: cameraViewer
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+            }
         }
     }
 }

@@ -14,17 +14,18 @@ Rectangle {
     Layout.alignment: Qt.AlignLeft
     width: parent.width
 
+    function setSource(source) {
+        camera.setSource(source)
+    }
+
+    function setSourcePath(path) {
+        camera.setSourcePath(path)
+    }
+
     CameraManager {
         id: camera
         anchors.fill: parent
         anchors.margins: 1
-
-        Component.onCompleted: {
-            // camera.setSource(0)
-            // camera.setSourcePath("tcp://xxx:8554")
-            camera.setSourcePath("/home/uiv22989/live-tracker/chat.mp4")
-            camera.startStream()
-        }
 
         onPositionMocked: function(latitude, longitude, label, clipPath, confidence) {
             FindingStore.addFinding(latitude, longitude, label, clipPath, confidence)

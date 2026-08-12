@@ -7,14 +7,43 @@ import QtQuick.Controls
     The temporal fresco: one swimlane per label, one dot per finding.
     Purely presentational — it is handed the events to draw, decides how to
     draw them, and reports clicks. It never picks which findings to show.
+
+    Two time modes:
+      • absolute (default): timestamps are epoch ms, the scale comes from
+        FilterState or from the data span.
+      • imposed scale: set timeMin/timeMax (>= 0, max > min) and the fresco
+        uses exactly that window — nothing padded, nothing overridden. This is
+        what the video view uses, where ts is an offset from the first frame.
 */
 Item {
     id: fresco
 
     property var events: []
     property string emptyText: ""
+    property bool useRelativeTime: false
+    property double timeMin: -1
+    property double timeMax: -1
+
+    // Optional playhead, in the same unit as the events (ignored when < 0).
+    property double marker: -1
+
+    // Highlights the event whose `index` matches (ignored when < 0). Matching
+    // on the event's own index rather than its position in `events` keeps the
+    // highlight anchored to the same finding when the list is refiltered.
+    property int selectedIndex: -1
 
     signal eventActivated(var finding)
+    signal selectionRequested(int index)
+
+    readonly property var selectedEvent: {
+        if (selectedIndex < 0)
+            return null
+        for (let i = 0; i < events.length; i++) {
+            if (events[i].index === selectedIndex)
+                return events[i]
+        }
+        return null
+    }
 
     // ── Lanes and colours ───────────────────────────────────────────────
     readonly property var lanes: {
@@ -42,12 +71,19 @@ Item {
     }
 
     // ── Time scale ──────────────────────────────────────────────────────
-    // The filter range if one is set, else the span of the data.
+    readonly property bool hasScaleOverride: timeMin >= 0 && timeMax >= 0 && timeMax > timeMin
+
+    // An imposed scale wins outright: no FilterState, no padding. Otherwise
+    // use the filter range if one is set, else the span of the data.
     readonly property var bounds: {
+        if (hasScaleOverride)
+            return [timeMin, timeMax]
+
         let lo = FilterState.fromMs > 0 ? FilterState.fromMs
                : (events.length ? events[0].ts : Clock.now - 3600000)
         let hi = FilterState.toMs > 0 ? FilterState.toMs
                : (events.length ? events[events.length - 1].ts : Clock.now)
+
         if (hi - lo < 60000) { // near-zero span → pad to a 1h window
             let mid = (hi + lo) / 2
             lo = mid - 1800000
@@ -59,11 +95,42 @@ Item {
     readonly property double tMax: bounds[1]
     readonly property double tSpan: Math.max(1, tMax - tMin)
 
-    // Short axis-tick formatter: time within a couple of days, else date.
+    // Axis-tick formatter. Relative mode adapts to the span so short clips do
+    // not end up with five ticks all reading "0:00".
     function fmtTick(ms) {
+        if (useRelativeTime) {
+            if (tSpan < 10000)
+                return (ms / 1000).toFixed(2) + "s"
+            if (tSpan < 60000)
+                return (ms / 1000).toFixed(1) + "s"
+            return fmtDuration(ms)
+        }
         if (tSpan <= 2 * 86400000)
             return Qt.formatDateTime(new Date(ms), "HH:mm")
         return Qt.formatDate(new Date(ms), "dd MMM")
+    }
+
+    function fmtDuration(ms) {
+        let totalSec = Math.max(0, Math.floor(ms / 1000))
+        let h = Math.floor(totalSec / 3600)
+        let m = Math.floor((totalSec % 3600) / 60)
+        let s = totalSec % 60
+
+        function pad2(v) {
+            return v < 10 ? "0" + v : "" + v
+        }
+
+        if (h > 0)
+            return h + ":" + pad2(m) + ":" + pad2(s)
+        return m + ":" + pad2(s)
+    }
+
+    // Tooltip-grade duration: keeps the tenths, which matter on a video where
+    // several detections can share the same second.
+    function fmtDurationPrecise(ms) {
+        let base = fmtDuration(ms)
+        let tenths = Math.floor(Math.max(0, ms) % 1000 / 100)
+        return base + "." + tenths
     }
 
     // ── Geometry ────────────────────────────────────────────────────────
@@ -158,6 +225,37 @@ Item {
         }
     }
 
+    // Playhead. Sits under the dots so it never eats their clicks.
+    Rectangle {
+        visible: fresco.marker >= fresco.tMin && fresco.marker <= fresco.tMax
+        x: fresco.xOf(fresco.marker)
+        y: 0
+        width: 1
+        height: fresco.lanesH
+        color: Theme.accent
+        opacity: 0.9
+    }
+
+    // Selection ring, drawn before the dots so the dot stays on top.
+    Rectangle {
+        id: selectionRing
+        visible: fresco.selectedEvent !== null
+        width: 24
+        height: 24
+        radius: width / 2
+        color: "transparent"
+        border.color: Theme.text
+        border.width: 2
+        opacity: 0.85
+        x: fresco.selectedEvent
+            ? fresco.xOf(fresco.selectedEvent.ts) - width / 2 : 0
+        y: fresco.selectedEvent
+            ? fresco.yOf(fresco.selectedEvent.label) - height / 2 : 0
+
+        Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+        Behavior on y { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+    }
+
     // Detection dots
     Repeater {
         model: fresco.events
@@ -167,10 +265,17 @@ Item {
 
             finding: modelData
             laneColor: fresco.colorOf(modelData.label)
+            relativeTime: fresco.useRelativeTime
+            timeText: fresco.useRelativeTime
+                ? fresco.fmtDurationPrecise(modelData.ts)
+                : Qt.formatDateTime(new Date(modelData.ts), "dd MMM HH:mm:ss")
             x: fresco.xOf(modelData.ts) - width / 2
             y: fresco.yOf(modelData.label) - height / 2
 
             onActivated: fresco.eventActivated(dot.modelData)
+            // The event carries its own index into the source model; the
+            // delegate's position in the Repeater is not it.
+            onSelectionRequested: fresco.selectionRequested(dot.modelData.index)
         }
     }
 
