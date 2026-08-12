@@ -2,6 +2,7 @@ add_executable(live_tracker_tests
     camera_source_test.cpp
     gps_test.cpp
     image_painter_test.cpp
+    tracker_test.cpp
 )
 
 target_link_libraries(live_tracker_tests PRIVATE
