@@ -11,6 +11,21 @@ find_package(OpenVINO REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
+include(CTest)
+
+if(BUILD_TESTING)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+endif()
+
+add_subdirectory(src)
+
 qt_add_executable(
     applive-tracker
     main.cpp
@@ -52,23 +67,10 @@ qt_add_qml_module(applive-tracker
         qml/Singletons/FilterState.qml
         qml/Singletons/Theme.qml
     SOURCES
-        src/camera_source.h
-        src/camera_source.cpp
         src/camera_manager.h
-        src/utils/clip_recorder.cpp
-        src/utils/clip_recorder.h
         src/camera_manager.cpp
-        src/detection/detection.h
-        src/detection/yolo_model.h
-        src/detection/yolo_model.cpp
         src/detection/video_timeline_analyzer.h
         src/detection/video_timeline_analyzer.cpp
-        src/position/gps.cpp
-        src/position/gps.h
-        src/utils/image_painter.h
-        src/utils/image_painter.cpp
-        src/detection/tracker.h
-        src/detection/tracker.cpp
         src/stores/finding_store.h
         src/stores/finding_store.cpp
     DEPENDENCIES
@@ -89,15 +91,19 @@ set_target_properties(applive-tracker PROPERTIES
 )
 
 target_include_directories(applive-tracker PRIVATE
-    ${OpenCV_INCLUDE_DIRS}
     src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/stores
     ${CMAKE_CURRENT_SOURCE_DIR}/src/detection
 )
-target_link_libraries(applive-tracker
-    PRIVATE Qt6::Quick Qt6::Positioning Qt6::Location Qt6::Multimedia Qt6::Sql ${OpenCV_LIBS} openvino::runtime
+
+target_link_libraries(applive-tracker PRIVATE
+    live_tracker_core
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::Positioning
+    Qt6::Location
+    Qt6::Multimedia
+    Qt6::Sql
 )
 
 include(GNUInstallDirs)
@@ -106,3 +112,7 @@ install(TARGETS applive-tracker
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

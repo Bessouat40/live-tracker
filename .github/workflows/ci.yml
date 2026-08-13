@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: ['main', 'master', 'feature/**', 'fix/**', 'refacto/**']
+  pull_request:
+    branches: ['main', 'master']
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- System dependencies (OpenCV) ---
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libopencv-dev ninja-build
+
+      # --- OpenVINO (Intel APT repository) ---
+      # Adjust the repo codename if you change runner OS. ubuntu-24.04 == "ubuntu24".
+      - name: Install OpenVINO
+        run: |
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | sudo gpg --dearmor -o /usr/share/keyrings/intel-sw-products.gpg
+          echo "deb [signed-by=/usr/share/keyrings/intel-sw-products.gpg] https://apt.repos.intel.com/openvino ubuntu24 main" \
+            | sudo tee /etc/apt/sources.list.d/intel-openvino.list
+          sudo apt-get update
+          sudo apt-get install -y openvino
+          # Expose OpenVINO's CMake config to find_package()
+          echo "CMAKE_PREFIX_PATH=$(dirname $(find /usr /opt -name OpenVINOConfig.cmake 2>/dev/null | head -n1))" >> "$GITHUB_ENV"
+
+      # --- Qt (matches find_package(Qt6 6.8 ...) in CMakeLists.txt) ---
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          modules: qtmultimedia qtlocation qtpositioning
+
+      # --- Configure, build only the test target, run tests ---
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build tests
+        run: cmake --build build --target live_tracker_tests
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
