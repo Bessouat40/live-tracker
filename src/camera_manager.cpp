@@ -92,6 +92,18 @@ void CameraManager::inferenceLoop() {
     }
 }
 
+Q_INVOKABLE void CameraManager::setSource(const qint32 &source) {
+    stopStream();
+    m_cameraSource.setSource(source);
+    startStream();
+}
+
+Q_INVOKABLE void CameraManager::setSourcePath(const QString &path) {
+    stopStream();
+    m_cameraSource.setSource(path.toStdString());
+    startStream();
+}
+
 void CameraManager::captureLoop() {
     while (m_running) {
         cv::Mat frame = m_cameraSource.getLatestFrame();
