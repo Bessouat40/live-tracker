@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["main", "master", "feature/**"]
+    branches: ['main', 'master', 'feature/**', 'fix/**', 'refacto/**']
   pull_request:
-    branches: ["main", "master"]
+    branches: ['main', 'master']
 
 jobs:
   tests:
@@ -36,7 +36,7 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: "6.8.3"
+          version: '6.8.3'
           modules: qtmultimedia qtlocation qtpositioning
 
       # --- Configure, build only the test target, run tests ---
