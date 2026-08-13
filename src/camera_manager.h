@@ -26,8 +26,8 @@ public:
     explicit CameraManager(QQuickItem *parent = nullptr);
     ~CameraManager();
     
-    Q_INVOKABLE void setSource(const qint32 &source) { m_cameraSource.setSource(source); }
-    Q_INVOKABLE void setSourcePath(const QString &path) { m_cameraSource.setSource(path.toStdString()); }
+    Q_INVOKABLE void setSource(const qint32 &source);
+    Q_INVOKABLE void setSourcePath(const QString &path);
     Q_INVOKABLE void startStream();
     Q_INVOKABLE void stopStream();
 

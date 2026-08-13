@@ -26,6 +26,8 @@ cv::Mat CameraSource::getLatestFrame()
 
 bool CameraSource::setSource(int source)
 {
+    if (m_capture.isOpened())
+        m_capture.release();
     if (!m_capture.open(source)) {
         std::cerr << "CameraSource: cannot open camera index " << source << std::endl;
         return false;
@@ -35,6 +37,8 @@ bool CameraSource::setSource(int source)
 
 bool CameraSource::setSource(const std::string& source)
 {
+    if (m_capture.isOpened())
+        m_capture.release();
     if (!m_capture.open(source)) {
         std::cerr << "CameraSource: cannot open video source " << source << std::endl;
         return false;
